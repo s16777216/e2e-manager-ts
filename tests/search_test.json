@@ -1,0 +1,11 @@
+{
+  "id": "wiki_search_ts",
+  "name": "維基百科搜尋 TypeScript 測試",
+  "steps": [
+    "導航至維基百科中文首頁 'https://zh.wikipedia.org/zh-tw/Wikipedia:%E9%A6%96%E9%A1%B5'",
+    "在頁面的搜尋輸入框中輸入 'TypeScript'",
+    "在搜尋輸入框的右側點擊一次'搜尋'按鈕，進入 'TypeScript' 的介紹頁面",
+    "確認已成功進入 'TypeScript' 的介紹頁面"
+  ],
+  "expected": "成功進入 TypeScript 的維基百科介紹頁，頁面大標題顯示『TypeScript』，且內容有程式語言相關的介紹文字"
+}
