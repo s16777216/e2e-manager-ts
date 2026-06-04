@@ -1,0 +1,12 @@
+{
+  "id": "login_success",
+  "name": "登入流程",
+  "steps": [
+    "進入 https://1.34.233.173:15555/login 頁面",
+    "輸入帳號 admin",
+    "輸入密碼 admin",
+    "點擊登入按鈕",
+    "跳轉到首頁"
+  ],
+  "expected": "跳轉到儀表版首頁 /dashboard/issue"
+}
