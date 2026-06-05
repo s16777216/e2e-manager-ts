@@ -14,6 +14,7 @@ import { Testcase } from "./entities/Testcase.js";
 import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
 import { TaskQueue } from "./queue.js";
+import { findAncestors } from "./services/groupService.js";
 
 const app = new Hono();
 
@@ -135,24 +136,6 @@ app.post("/api/projects/:projectId/groups", async (c) => {
   return c.json(group, 201);
 });
 
-// 遞迴獲取當前群組的所有祖先節點 (用於 adjacency-list 結構防環)
-async function findAncestors(group: TestGroup): Promise<TestGroup[]> {
-  const ancestors: TestGroup[] = [];
-  let current = group;
-  const groupRepo = AppDataSource.getRepository(TestGroup);
-
-  while (current.parent) {
-    const parent = await groupRepo.findOne({
-      where: { id: current.parent.id },
-      relations: { parent: true },
-    });
-    if (!parent) break;
-    ancestors.push(parent);
-    current = parent;
-  }
-  return ancestors;
-}
-
 app.patch("/api/groups/:id", async (c) => {
   const id = c.req.param("id");
   const { name, parentId } = await c.req.json();
@@ -179,7 +162,7 @@ app.patch("/api/groups/:id", async (c) => {
       if (!newParent) return c.json({ error: "找不到指定的父群組" }, 400);
 
       // 防環校驗：檢查新父群組的祖先鏈中是否包含當前群組
-      const ancestors = await findAncestors(newParent);
+      const ancestors = await findAncestors(newParent, groupRepo);
       const isLoop = ancestors.some((ancestor) => ancestor.id === group.id);
 
       if (isLoop) {

@@ -2,6 +2,7 @@ import { AppDataSource } from "./db.js";
 import { TestRun } from "./entities/TestRun.js";
 import { BrowserManager } from "./browser.js";
 import { E2EGraphBuilder } from "./graph.js";
+import { TaskFSM } from "./queue/taskFSM.js";
 
 export class TaskQueue {
   private isRunning = false;
@@ -13,14 +14,10 @@ export class TaskQueue {
   public async cleanupTimeoutJobs(timeoutMinutes: number = 5): Promise<number> {
     const threshold = new Date(Date.now() - timeoutMinutes * 60 * 1000);
     try {
+      const timeoutPayload = TaskFSM.timeout(timeoutMinutes);
       const result = await AppDataSource.createQueryBuilder()
         .update(TestRun)
-        .set({
-          status: "failed",
-          finalResult: "FAIL",
-          finalReason: `任務執行超時（超過 ${timeoutMinutes} 分鐘），自動終止。`,
-          finishedAt: new Date()
-        })
+        .set(timeoutPayload)
         .where("status = :status", { status: "running" })
         .andWhere("startedAt < :threshold", { threshold })
         .execute();
@@ -54,8 +51,8 @@ export class TaskQueue {
         .getOne();
 
       if (run) {
-        run.status = "running";
-        run.startedAt = new Date();
+        const startPayload = TaskFSM.start();
+        Object.assign(run, startPayload);
         await queryRunner.manager.save(run);
         await queryRunner.commitTransaction();
         return run.id;
@@ -119,12 +116,8 @@ export class TaskQueue {
       console.error(`[Worker] 任務 ${runId} 執行時發生未預期異常：`, error);
       // 將狀態更新為 error
       try {
-        await AppDataSource.getRepository(TestRun).update(runId, {
-          status: "error",
-          finalResult: "ERROR",
-          finalReason: `任務執行崩潰：${error.message}`,
-          finishedAt: new Date()
-        });
+        const crashPayload = TaskFSM.crash(error.message);
+        await AppDataSource.getRepository(TestRun).update(runId, crashPayload);
         
         // 發布事件
         await AppDataSource.query(
@@ -132,9 +125,9 @@ export class TaskQueue {
           [
             JSON.stringify({
               runId: runId,
-              status: "error",
-              finalResult: "ERROR",
-              finalReason: `任務執行崩潰：${error.message}`,
+              status: crashPayload.status,
+              finalResult: crashPayload.finalResult,
+              finalReason: crashPayload.finalReason,
               event: "completed",
               timestamp: new Date().toISOString()
             })

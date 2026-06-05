@@ -1,6 +1,7 @@
 import { chromium, Browser, BrowserContext, Page } from "playwright";
 import * as fs from "fs";
 import * as path from "path";
+import { calculateSelector } from "./browser/selector.js";
 
 export class BrowserManager {
   public browser: Browser | null = null;
@@ -79,7 +80,11 @@ export class BrowserManager {
     }
 
     try {
-      const simplifiedDom = await this.page.evaluate(() => {
+      const calcSelectorStr = calculateSelector.toString();
+      const simplifiedDom = await this.page.evaluate((fnStr) => {
+        // 還原為瀏覽器端可執行的 selector 計算函數
+        const calculateSelector = new Function("return " + fnStr)();
+
         const results: any[] = [];
         // 抓取按鈕、連結、輸入欄位與標題
         const elements = document.querySelectorAll(
@@ -109,21 +114,8 @@ export class BrowserManager {
           const type = el.getAttribute('type') || "";
           const value = (el as HTMLInputElement).value || ""; // 讀取當前已輸入內容
           
-          // 定位用 selector
-          let selector = "";
-          if (id) {
-            selector = `#${id}`;
-          } else if (name) {
-            selector = `${tagName}[name="${name}"]`;
-          } else if (placeholder) {
-            selector = `${tagName}[placeholder="${placeholder}"]`;
-          } else if (text) {
-            // 轉義單引號與雙引號
-            const escapedText = text.replace(/"/g, '\\"').replace(/'/g, "\\'");
-            selector = `${tagName}:has-text("${escapedText}")`;
-          } else {
-            selector = tagName;
-          }
+          // 調用抽離後的定位演算法
+          const selector = calculateSelector({ tagName, id, name, placeholder, text });
           
           results.push({
             tagName,
@@ -151,7 +143,7 @@ export class BrowserManager {
           desc += `</${item.tagName}>`;
           return desc;
         }).join('\n');
-      });
+      }, calcSelectorStr);
 
       return simplifiedDom || "<!-- 頁面目前沒有檢測到可見的互動元素 -->";
     } catch (e: any) {

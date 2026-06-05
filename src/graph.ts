@@ -9,6 +9,8 @@ import { BrowserTools } from "./tools.js";
 import { AppDataSource } from "./db.js";
 import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
+import { buildExecutorSystemPrompt, buildAsserterSystemPrompt } from "./graph/prompt.js";
+import { routeAfterExecution, routeNextStep } from "./graph/router.js";
 
 // 定義結構化視覺斷言 Zod Schema
 const AssertionResultSchema = z.object({
@@ -68,18 +70,12 @@ export class E2EGraphBuilder {
     const current_url = this.browserManager.page ? this.browserManager.page.url() : "";
 
     // 2. 建構系統 Prompt
-    const system_prompt = 
-      "你是一個專業的 Web E2E 自動化測試 AI 代理人。\n" +
-      `你目前正在執行的測試案例為：${state.test_name}。\n` +
-      `你當前的目標是完成第 ${idx + 1} 步：『${step_content}』。\n\n` +
-      `當前瀏覽器的網址 (URL) 為：${current_url}\n\n` +
-      "請檢查下方的網頁畫面截圖與簡化的 DOM 結構。決定你下一步要呼叫的工具 (Tool Call)。\n" +
-      "重要規則：\n" +
-      "1. 每次你的決策都必須呼叫至少一個工具。禁止直接回覆純文字。\n" +
-      "2. 當你確認當前步驟描述的目標已經達成（例如：已經點擊了登入按鈕、網址已成功跳轉、輸入框已輸入完成，或已成功進入目標網頁），你必須呼叫 `finish_step` 工具以結束此步驟。不要擅自執行超出此步驟描述以外的額外操作。\n" +
-      "   特別是：若目前的步驟目標是「進入某頁面/網址」，且當前瀏覽器的網址已經與目標網址相同（或已成功載入該網頁），請立即呼叫 `finish_step`，切勿重複進行 navigate_to 導航操作。\n" +
-      "3. 如果找不到合適的元素，或者頁面仍在加載，可以使用 `wait_for_seconds` 工具等待。\n" +
-      "4. 在進行點擊或輸入時，優先使用簡化 DOM 中標示的 `selector` 屬性值。";
+    const system_prompt = buildExecutorSystemPrompt({
+      testName: state.test_name,
+      stepIdx: idx,
+      stepContent: step_content,
+      currentUrl: current_url
+    });
 
     // 3. 呼叫模型
     const messages = [
@@ -228,12 +224,10 @@ export class E2EGraphBuilder {
   async asserterNode(state: typeof TestState.State) {
     const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
 
-    const system_prompt = 
-      "你是一個專業的 Web E2E 測試驗證 AI 審計員。\n" +
-      "我們剛剛執行完了一套測試流程，請看著最後的網頁截圖，判斷是否成功達成了預期的測試結果。\n\n" +
-      `測試案例名稱：${state.test_name}\n` +
-      `預期結果：${state.expected}\n\n` +
-      "請將結果以結構化的格式回覆，判定是否通過 (PASS 或 FAIL) 並說明理由。";
+    const system_prompt = buildAsserterSystemPrompt({
+      testName: state.test_name,
+      expected: state.expected
+    });
 
     const messages = [
       new SystemMessage(system_prompt),
@@ -361,40 +355,7 @@ export class E2EGraphBuilder {
     return update_data;
   }
 
-  /**
-   * 執行後的條件路由：判斷是否完成該步、繼續執行工具、或是重試超次失敗
-   */
-  routeAfterExecution(state: typeof TestState.State): string {
-    const logs = state.logs || [];
-    if (logs.length === 0) {
-      return "executor";
-    }
 
-    // 讀取最後一筆日誌，判斷是否呼叫了 finish_step
-    const last_log = logs[logs.length - 1];
-    const action = last_log.action || "";
-
-    if (action.includes("finish_step")) {
-      return "step_tracker";
-    }
-
-    // 檢查單步重試次數是否超限 (例如單步最多重試 5 次)
-    if ((state.step_retry_count ?? 0) >= 5) {
-      return "reporter";
-    }
-
-    return "executor";
-  }
-
-  /**
-   * 步驟推進後的路由：判斷是否還有下一步，或是進入最終驗證
-   */
-  routeNextStep(state: typeof TestState.State): string {
-    if ((state.current_step_idx ?? 0) < state.steps.length) {
-      return "executor";
-    }
-    return "asserter";
-  }
 
   /**
    * 串接並編譯 LangGraph
@@ -415,7 +376,7 @@ export class E2EGraphBuilder {
       // 執行後的條件邊
       .addConditionalEdges(
         "executor",
-        this.routeAfterExecution.bind(this),
+        routeAfterExecution as any,
         {
           executor: "executor",
           step_tracker: "step_tracker",
@@ -426,7 +387,7 @@ export class E2EGraphBuilder {
       // 步驟追蹤後的條件邊
       .addConditionalEdges(
         "step_tracker",
-        this.routeNextStep.bind(this),
+        routeNextStep as any,
         {
           executor: "executor",
           asserter: "asserter"
