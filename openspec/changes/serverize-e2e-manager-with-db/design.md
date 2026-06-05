@@ -9,17 +9,18 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- 提供 REST API，支援 `Project`、`Group`（支援遞迴嵌套）與 `Testcase` 的 CRUD 管理。
+- 提供 REST API，支援 `Project`、`Group`（支援遞迴嵌套且在路由業務層防環）與 `Testcase` 的 CRUD 管理。
 - 支援非同步觸發 `Testcase` 執行並取得即時任務進度。
 - 導入 PostgreSQL 資料庫，透過 TypeORM 儲存與管理 `Project`、`TestGroup`、`Testcase`、`TestRun` 與 `TestLog` 實體。
 - 實作 PostgreSQL 事務任務佇列（利用 `FOR UPDATE SKIP LOCKED`），取代不具持久性的記憶體佇列，保證伺服器重啟時排隊任務不遺失。
 - 實作即時通知機制，利用 PostgreSQL `LISTEN`/`NOTIFY` 通道，在步驟日誌寫入時即時通知 Hono 伺服器，以便向前端發送即時執行串流（例如使用 Server-Sent Events - SSE）。
-- 將原本在執行中生成至 `reports` 目錄的截圖路徑與日誌直接回寫至資料庫中。
-- 將 `reports` 目錄設為靜態資源目錄，使 API 回傳的截圖路徑能透過 HTTP 直接存取。
+- 將原本在執行中生成的日誌直接寫入資料庫，截圖檔案在擷取後以 `bytea` (Buffer) 格式直接寫入資料庫實體中，實現真正的無狀態伺服器設計。
+- 提供 API 路由端點以取得測試執行的截圖二進位資料。
 
 **Non-Goals:**
 - 本階段不開發繁複的前端介面（僅專注於提供 API 接口與資料庫底層）。
 - 不引入外部 Redis / BullMQ 依賴，完全依靠 PostgreSQL 內建功能達成佇列與 Pub/Sub 需求。
+- 不引入本地檔案系統來儲存截圖（全部由資料庫 `bytea` 接管，不使用 `reports` 目錄作為實體儲存）。
 - 不實作多租戶權限管理與登入驗證。
 - 不引入 `waiting_human`（人工介入點）的流程，測試任務以自動跑完、判定 Passed/Failed 為主。
 
@@ -66,6 +67,7 @@
   - `startedAt` / `finishedAt` (Column, Nullable)
   - `finalResult`: String (Column, Nullable)
   - `finalReason`: String (Column, Nullable)
+  - `screenshotFailData`: Buffer (Column, Nullable, type "bytea") - 最終失敗時的畫面截圖
   - `logs`: OneToMany -> `TestLog`
 - **`TestLog` 實體:**
   - `id`: UUID (Primary Key)
@@ -75,7 +77,7 @@
   - `action`: String (Column, Nullable)
   - `result`: String (Column, Nullable)
   - `aiResponse`: String (Column, Nullable)
-  - `screenshotPath`: String (Column, Nullable)
+  - `screenshotData`: Buffer (Column, Nullable, type "bytea", select: false) - 預設不查詢此欄位以優化效能
   - `createdAt`
 
 ### 3. 背景執行與佇列管理：PostgreSQL 事務佇列 (Database Queue)
@@ -108,8 +110,9 @@
     3. Hono 使用 `pg` 連線執行 `LISTEN test_run_logs`。
     4. 當 Hono 收到事件時，透過 `hono/streaming` 的 Server-Sent Events (SSE) 接口即時推送到前端。
 
-### 5. 靜態截圖與 URL 關聯
-- **決策：** 測試截圖儲存在 `reports/` 對應目錄下，資料庫中記錄相對路徑。API 伺服器透過 Hono 的 `serveStatic` 提供 `reports` 目錄的靜態資源服務。
+### 5. 圖片二進位持久化 (方案 A)
+- **決策：** 測試截圖與失敗畫面擷取後不寫入本地 reports 目錄，而是直接讀取為 Buffer 並儲存至資料庫的 `bytea` 類型欄位。
+- **理由：** 達成無狀態伺服器（Stateless Server）設計，便於多伺服器水平擴展，且備份與還原資料庫時能同步遷移所有歷史截圖。Hono 伺服器端將提供 GET `/api/runs/:runId/screenshots/fail` 與 GET `/api/logs/:logId/screenshot` 等 API 路由，讀取資料庫二進位並指定 `Content-Type: image/png` 返回。
 
 ## Risks / Trade-offs
 
@@ -118,4 +121,6 @@
 - **[Risk] 連線池（Connection Pool）資源佔用**
   - *Mitigation*: 由於 `LISTEN` 會佔用一個獨立且持續的資料庫連線，因此 Hono 伺服器端必須使用一個專用的獨立 Client 進行監聽，不能從一般的 TypeORM 連線池中拿取，以避免阻塞正常的 API 請求。
 - **[Risk] 遞迴群組可能造成無窮迴圈（Parent-child loop）**
-  - *Mitigation*: TypeORM 樹狀實體若有循環引用會造成樹狀查詢死鎖。在 API 更新 `parent` 之前，我們必須編寫邏輯檢驗新父群組的祖先節點是否包含自己。
+  - *Mitigation*: 在 API 路由業務邏輯層，更新群組 `parent` 之前，利用 `TreeRepository.findAncestors(newParent)` 查詢新父群組的所有祖先，檢查是否包含當前群組，若包含則回傳 400 錯誤。
+- **[Risk] Worker 進程無預警崩潰導致任務卡死在 'running'**
+  - *Mitigation*: 在 Worker 輪詢隊列時，除了伺服器重啟的重置，還會搭配執行定時清理。查詢所有 `startedAt` 超過 5 分鐘且狀態為 `running` 的 `TestRun`，批次更新為 `failed` 並註明「執行超時」。

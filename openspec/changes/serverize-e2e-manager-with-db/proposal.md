@@ -4,16 +4,16 @@
 
 ## What Changes
 
-- **新增 API 服務端：** 建立 Hono API 伺服器，提供測試劇本、專案與群組的樹狀管理（CRUD）與非同步啟動測試的接口。
+- **新增 API 服務端與樹狀防環校驗：** 建立 Hono API 伺服器，提供測試劇本、專案與群組的樹狀管理（CRUD，且在路由業務邏輯層進行防範嵌套循環的驗證）與非同步啟動測試的接口。
 - **導入 PostgreSQL 與 TypeORM：** 使用 PostgreSQL 資料庫儲存資料，並透過 TypeORM 進行物件關聯對照（ORM）管理，簡化樹狀群組的遞迴查詢與維護。
-- **重構執行模式為非同步任務佇列：** 當收到測試請求時，改為非同步派發任務，由背景任務佇列（Queue/Worker）按順序執行，並實施併發限制以保護伺服器硬體資源。
-- **持久化 LangGraph 執行紀錄：** 重構原有的報告生成器，將每次執行的日誌、截圖路徑與視覺斷言結果，在執行過程中即時寫入資料庫，不再依賴本地 Markdown 檔案生成。
+- **重構執行模式為非同步任務佇列：** 當收到測試請求時，改為非同步派發任務，由背景任務佇列（Queue/Worker）按順序執行，並實施超時清除與併發限制以保護伺服器硬體資源。
+- **持久化 LangGraph 執行紀錄與二進位截圖：** 重構原有的報告生成器，將每次執行的日誌、二進位截圖（使用 PostgreSQL `bytea` 儲存）與視覺斷言結果，在執行過程中即時寫入資料庫，不再依賴本地檔案系統與 Markdown 檔案生成。
 
 ## Capabilities
 
-### New Capabilities
-- `api-server-and-scenario-store`: 提供 Hono API 伺服器與 PostgreSQL/TypeORM 資料庫整合，支援專案、群組（樹狀）與測試案例管理。
-- `background-task-runner`: 實作非同步任務佇列（Queue/Worker）機制，負責排隊執行 Playwright/LangGraph 測試，控制最大併發量，並將執行結果與截圖路徑即時寫入資料庫。
+## New Capabilities
+- `api-server-and-scenario-store`: 提供 Hono API 伺服器與 PostgreSQL/TypeORM 資料庫整合，支援專案、群組（樹狀）與測試案例管理，並將截圖以二進位方式寫入資料庫。
+- `background-task-runner`: 實作非同步任務佇列（Queue/Worker）機制，負責排隊執行 Playwright/LangGraph 測試，控制最大併發量，並將執行結果、日誌與二進位截圖即時寫入資料庫，同時偵測並清除超時卡死任務。
 
 ### Modified Capabilities
 - (無變更現有 spec)
