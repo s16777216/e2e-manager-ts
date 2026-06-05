@@ -1,14 +1,14 @@
-import * as fs from "fs";
-import * as path from "path";
 import { z } from "zod";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
-import { TestState, LogEntry } from "./state.js";
+import { TestState } from "./state.js";
 import { BrowserManager } from "./browser.js";
 import { BrowserTools } from "./tools.js";
-import { TestReporter } from "./reporter.js";
+import { AppDataSource } from "./db.js";
+import { TestRun } from "./entities/TestRun.js";
+import { TestLog } from "./entities/TestLog.js";
 
 // 定義結構化視覺斷言 Zod Schema
 const AssertionResultSchema = z.object({
@@ -44,13 +44,9 @@ export class E2EGraphBuilder {
   }
 
   /**
-   * 初始化節點：啟動瀏覽器並將索引歸零
+   * 初始化節點：將索引與狀態歸零
    */
   async initNode(state: typeof TestState.State) {
-    // 確保報告資料夾存在
-    fs.mkdirSync(state.reports_dir, { recursive: true });
-    fs.mkdirSync(path.join(state.reports_dir, "screenshots"), { recursive: true });
-
     return {
       current_step_idx: 0,
       step_retry_count: 0,
@@ -112,7 +108,7 @@ export class E2EGraphBuilder {
         step_idx: idx,
         step_description: step_content,
         action: "none",
-        result: "AI Agent 未呼召任何工具，直接回覆文字說明",
+        result: "AI Agent 未呼召 any 工具，直接回覆文字說明",
         ai_response: typeof response.content === "string" ? response.content : JSON.stringify(response.content),
         timestamp: new Date().toISOString()
       });
@@ -160,35 +156,74 @@ export class E2EGraphBuilder {
   }
 
   /**
-   * 記錄追蹤節點：當步驟完成時，將當前畫面截圖存檔並推進步驟索引
+   * 記錄追蹤節點：當步驟完成時，將截圖存入資料庫並推進步驟索引
    */
   async stepTrackerNode(state: typeof TestState.State) {
     const idx = state.current_step_idx;
-    const step_content = state.steps[idx];
+    
+    // 取得與目前步驟相關的 logs
+    const stepLogs = (state.logs || []).filter(l => l.step_idx === idx);
 
-    // 產生安全的檔名
-    const safeStepName = step_content
-      .replace(/[^a-zA-Z0-9_\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "_");
-    const filename = `step_${idx + 1}_${safeStepName}.png`;
-    const filepath = path.join(state.reports_dir, "screenshots", filename);
+    // 擷取目前步驟完成時的截圖 Buffer
+    let screenshotBuffer: Buffer | undefined;
+    try {
+      const base64 = await this.browserManager.getPageScreenshotBase64();
+      screenshotBuffer = Buffer.from(base64, "base64");
+    } catch (e: any) {
+      console.error(`[E2E Manager] 擷取步驟完成畫面失敗: ${e.message}`);
+    }
 
-    // 存檔截圖
-    await this.browserManager.saveScreenshot(filepath);
-
-    const screenshots_paths = [...state.screenshots_paths];
-    screenshots_paths.push(`screenshots/${filename}`);
+    // 將日誌與二進位截圖寫入資料庫
+    const testRunRepo = AppDataSource.getRepository(TestRun);
+    const testLogRepo = AppDataSource.getRepository(TestLog);
+    
+    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
+    if (run) {
+      for (let i = 0; i < stepLogs.length; i++) {
+        const log = stepLogs[i];
+        const entity = new TestLog();
+        entity.run = run;
+        entity.stepIdx = log.step_idx;
+        entity.stepDescription = log.step_description;
+        entity.action = log.action;
+        entity.result = log.result;
+        entity.aiResponse = log.ai_response;
+        
+        // 僅在最後一筆 log 附帶截圖，代表該步完成時的畫面 (bytea 二進位)
+        if (i === stepLogs.length - 1 && screenshotBuffer) {
+          entity.screenshotData = screenshotBuffer;
+        }
+        
+        await testLogRepo.save(entity);
+        
+        // 每寫入一筆日誌，就調用 NOTIFY 通知監聽者
+        await testLogRepo.query(
+          `SELECT pg_notify('test_run_logs', $1)`,
+          [
+            JSON.stringify({
+              runId: run.id,
+              stepIdx: log.step_idx,
+              stepDescription: log.step_description,
+              action: log.action,
+              result: log.result,
+              aiResponse: log.ai_response,
+              logId: entity.id,
+              event: "log",
+              timestamp: new Date().toISOString()
+            })
+          ]
+        );
+      }
+    }
 
     return {
       current_step_idx: idx + 1,
-      step_retry_count: 0,
-      screenshots_paths
+      step_retry_count: 0
     };
   }
 
   /**
-   * 驗證節點：在所有步驟完成後，進行視覺預期結果的最終 Pass/Fail 判定
+   * 驗證節點：在所有步驟完成後，進行視覺預期結果的最終 Pass/Fail 判定，並持久化至資料庫
    */
   async asserterNode(state: typeof TestState.State) {
     const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
@@ -234,6 +269,30 @@ export class E2EGraphBuilder {
     // 關閉瀏覽器，因為測試已結束
     await this.browserManager.closeBrowser();
 
+    // 更新 TestRun 狀態
+    const testRunRepo = AppDataSource.getRepository(TestRun);
+    await testRunRepo.update(state.run_id, {
+      status: final_result === "PASS" ? "passed" : "failed",
+      finalResult: final_result,
+      finalReason: final_reason,
+      finishedAt: new Date()
+    });
+
+    // 發送任務結束通知
+    await testRunRepo.query(
+      `SELECT pg_notify('test_run_logs', $1)`,
+      [
+        JSON.stringify({
+          runId: state.run_id,
+          status: final_result === "PASS" ? "passed" : "failed",
+          finalResult: final_result,
+          finalReason: final_reason,
+          event: "completed",
+          timestamp: new Date().toISOString()
+        })
+      ]
+    );
+
     return {
       final_result,
       final_reason
@@ -241,40 +300,63 @@ export class E2EGraphBuilder {
   }
 
   /**
-   * 報告節點：生成測試報告
+   * 報告節點：處理失敗中斷時的安全寫入
    */
   async reporterNode(state: typeof TestState.State) {
     const update_data: any = {};
     const currentStepIdx = state.current_step_idx ?? 0;
     const steps = state.steps || [];
 
-    // 如果測試尚未執行完所有步驟就被迫中斷 (例如重試超限)，則在此節點進行失敗狀態標記
+    // 如果測試尚未執行完所有步驟就被迫中斷 (例如重試超限)
     if (currentStepIdx < steps.length) {
       update_data.final_result = "FAIL";
       update_data.final_reason = `步驟 ${currentStepIdx + 1} (『${steps[currentStepIdx]}』) 執行次數達到上限但仍未完成，強制終止測試。`;
     }
 
-    // 合併最新狀態，以便讓截圖判斷與報告生成讀取到最新資料
     const merged_result = update_data.final_result || state.final_result;
+    let screenshotFailBuffer: Buffer | undefined;
 
-    // 如果測試為失敗狀態且瀏覽器尚未關閉，先存檔最後一張失敗畫面截圖
     if (["FAIL", "ERROR"].includes(merged_result) && this.browserManager.page) {
       try {
-        const filepath = path.join(state.reports_dir, "screenshot_fail.png");
-        await this.browserManager.saveScreenshot(filepath);
+        const base64 = await this.browserManager.getPageScreenshotBase64();
+        screenshotFailBuffer = Buffer.from(base64, "base64");
       } catch (e: any) {
         console.error(`[E2E Manager] 無法擷取最終失敗畫面：${e.message}`);
       }
     }
 
-    // 確保關閉瀏覽器 (如果是因錯誤中斷跳到此節點)
+    // 確保關閉瀏覽器
     try {
       await this.browserManager.closeBrowser();
     } catch (e) {}
 
-    const temp_state = { ...state, ...update_data };
-    const report_path = TestReporter.generateReport(temp_state);
-    console.log(`\n[E2E Manager] 測試結束。測試報告已成功生成至：${report_path}`);
+    // 更新資料庫中的 TestRun 紀錄，將最終失敗結果與失敗當刻截圖二進位 (bytea) 寫入
+    const testRunRepo = AppDataSource.getRepository(TestRun);
+    const updatePayload: any = {
+      status: merged_result === "PASS" ? "passed" : (merged_result === "ERROR" ? "error" : "failed"),
+      finalResult: merged_result,
+      finalReason: update_data.final_reason || state.final_reason,
+      finishedAt: new Date()
+    };
+    if (screenshotFailBuffer) {
+      updatePayload.screenshotFailData = screenshotFailBuffer;
+    }
+    await testRunRepo.update(state.run_id, updatePayload);
+
+    // 發送任務結束通知
+    await testRunRepo.query(
+      `SELECT pg_notify('test_run_logs', $1)`,
+      [
+        JSON.stringify({
+          runId: state.run_id,
+          status: updatePayload.status,
+          finalResult: merged_result,
+          finalReason: updatePayload.finalReason,
+          event: "completed",
+          timestamp: new Date().toISOString()
+        })
+      ]
+    );
 
     return update_data;
   }

@@ -18,6 +18,7 @@ export class BrowserManager {
   async initBrowser(headless: boolean = true) {
     this.browser = await chromium.launch({
       headless,
+      channel: "chrome",
       args: ["--disable-web-security", "--no-sandbox"]
     });
     this.context = await this.browser.newContext({

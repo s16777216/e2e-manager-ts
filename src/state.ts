@@ -11,6 +11,7 @@ export interface LogEntry {
 
 export const TestState = Annotation.Root({
   // 測試案例基本資訊
+  run_id: Annotation<string>(),
   test_id: Annotation<string>(),
   test_name: Annotation<string>(),
   steps: Annotation<string[]>(),
