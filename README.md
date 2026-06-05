@@ -11,6 +11,7 @@
 - **瀏覽器自動化：** Playwright — 原生控制 Chromium 瀏覽器，進行頁面元素操縱與即時截圖。
 - **Web API 服務端：** Hono — 現代、極速且原生支援 TypeScript 的 Web 框架。
 - **資料庫與 ORM：** PostgreSQL + TypeORM — 支援實體關聯、自動 schema 同步，並利用 **Tree Entities** (樹狀裝飾子) 處理遞迴嵌套的資料結構。
+- **單元測試框架：** Vitest — 原生支援 TypeScript 與 ESM 的極速測試框架，用於對劇本解析、DOM 定位、LangGraph 條件路由與佇列狀態機進行邏輯隔離測試。
 
 ---
 
@@ -39,10 +40,10 @@
       └─────────────────────────────┘         └─────────────────────────────┘
                      ▲                                         │
                      │                                         │ 3. 領取任務並執行
-                     │ 4. 寫入日誌並觸發 NOTIFY                 ▼
-                     └────────────────────────────────┌─────────────────────┐
-                                                      │  E2E Test Worker    │
-                                                      │    (LangGraph)      │
+                     │                                         ▼
+                     │                                ┌─────────────────────┐
+                     │ 4. 寫入日誌並觸發 NOTIFY        │  E2E Test Worker    │
+                     └────────────────────────────────│    (LangGraph)      │
                                                       └─────────────────────┘
                                                                  │
                                                     5. 控制與擷取 │
@@ -53,14 +54,17 @@
 ```
 
 ### 1. 專案階層組織 (Project > Group > Testcase)
+
 - **Project (專案)：** 最上層的容器，劃分不同系統專區。
 - **Group (群組)：** 資料夾結構，支援**無限層級遞迴嵌套**（利用 TypeORM `@Tree("adjacency-list")` 實作）。
 - **Testcase (測試案例)：** 具體的自然語言步驟劇本與預期結果。
 
 ### 2. 事務性背景佇列 (DB Queue)
+
 - Worker 藉由執行 `SELECT ... FOR UPDATE SKIP LOCKED` 查詢，安全地在資料庫中搶占 `pending` 狀態的任務並將其標記為 `running`。這能防止多個 Worker 重複領取同一個任務，且能保證伺服器重啟時任務不遺失。
 
 ### 3. 即時步驟串流 (LISTEN / NOTIFY)
+
 - 當 Worker 在背景寫入新的步驟日誌（`TestLog`）時，資料庫會發佈 `NOTIFY` 事件。Hono 伺服器維持一個 `LISTEN` 連線訂閱此事件，並透過 Server-Sent Events (SSE) 機制即時將日誌與截圖路徑串流給瀏覽器。
 
 ---
@@ -76,8 +80,13 @@ c:\works\e2e-manager-ts\
 ├── reports/                # 測試報告與步驟截圖輸出目錄 (可作為靜態目錄存取)
 ├── src/                    # 原始碼目錄
 │   ├── entities/           # TypeORM 實體定義 (Project, TestGroup, Testcase, 等)
+│   ├── routes/             # Hono 子路由模組 (project, group, testcase, run) [NEW]
+│   ├── services/           # 獨立業務服務模組 (如群組防環 groupService)
+│   ├── browser/            # 瀏覽器定位等核心演算法 (如 selector 計算)
+│   ├── graph/              # 狀態機 Prompt 拼接與條件路由純函數
+│   ├── queue/              # 任務佇列狀態轉移 FSM
 │   ├── main.ts             # CLI 測試進入點
-│   ├── server.ts           # Hono API 伺服器進入點
+│   ├── server.ts           # Hono API 伺服器入口 (載入子路由與 Bootstrap)
 │   ├── db.ts               # TypeORM DataSource 初始化與啟動修復邏輯
 │   ├── queue.ts            # PostgreSQL 事務佇列管理類別
 │   ├── browser.ts          # Playwright 控制與 HTML DOM 元素過濾簡化器
@@ -85,9 +94,15 @@ c:\works\e2e-manager-ts\
 │   ├── tools.ts            # 提供給 AI 代理呼叫的瀏覽器互動工具箱
 │   ├── parser.ts           # 本地 JSON 劇本驗證解析器 (Zod)
 │   └── reporter.ts         # Markdown 報告組裝生成器
-├── tests/                  # 本地 JSON 測試劇本範例
+├── tests/                  # 測試檔案目錄
+│   ├── services/           # 服務層單元測試 (如 groupService)
+│   ├── browser/            # 瀏覽器定位單元測試 (如 selector)
+│   ├── queue/              # 佇列狀態機單元測試 (如 taskFSM)
+│   ├── *.test.ts           # 其他模組單元測試 (如 parser, graph)
+│   └── *.json              # 本地 JSON 測試劇本範例
 ├── package.json            # 專案套件依賴與腳本定義
-└── tsconfig.json           # TypeScript 編譯設定
+├── tsconfig.json           # TypeScript 編譯設定
+└── tsconfig.build.json     # 生產編譯 TypeScript 設定
 ```
 
 ---
@@ -95,6 +110,7 @@ c:\works\e2e-manager-ts\
 ## 🚀 快速開始
 
 ### 1. 安裝環境與依賴
+
 確保已安裝 Node.js 18+ 與 PostgreSQL 服務。
 
 ```bash
@@ -106,6 +122,7 @@ npx playwright install chromium
 ```
 
 ### 2. 配置環境變數
+
 於專案根目錄建立 `.env` 檔案（可參考 `.env.example`）：
 
 ```env
@@ -117,6 +134,7 @@ DATABASE_URL=postgresql://username:password@localhost:5432/e2e_manager
 ```
 
 ### 3. 以 CLI 模式執行本地測試
+
 可以直接傳入 JSON 劇本，在終端機中同步執行測試並生成 Markdown 報告：
 
 ```bash
@@ -127,10 +145,23 @@ npx tsx src/main.ts tests/search_test.json
 執行完畢後，可在控制台看見結果，並於 `reports/run_wiki_search_ts_<timestamp>/` 內找到完整的 `report.md` 及逐步截圖。
 
 ### 4. 啟動 Web API 伺服器
+
 將伺服器啟動於本地，提供 REST API 與即時串流：
 
 ```bash
 npm run server
+```
+
+### 5. 執行單元測試
+
+在不依賴任何外部資料庫或瀏覽器資源的情況下，快速驗證專案純邏輯：
+
+```bash
+# 執行全專案所有的單元測試 (parser, graph, selector, taskFSM, groupService)
+npm run test
+
+# 以監聽 (watch) 模式執行開發測試
+npm run test:watch
 ```
 
 ---
