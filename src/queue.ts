@@ -43,7 +43,8 @@ export class TaskQueue {
 
     try {
       // 搜尋最早的一筆 pending 任務，並進行行鎖定（跳過其他已被鎖定的任務）
-      const run = await queryRunner.manager.createQueryBuilder(TestRun, "run")
+      const run = await queryRunner.manager
+        .createQueryBuilder(TestRun, "run")
         .setLock("pessimistic_write")
         .setOnLocked("skip_locked")
         .where("run.status = :status", { status: "pending" })
@@ -73,11 +74,11 @@ export class TaskQueue {
    */
   public async executeJob(runId: string): Promise<void> {
     console.log(`[Worker] 開始執行任務：${runId}`);
-    
+
     // 獲取任務詳情與其關聯的測試案例
     const run = await AppDataSource.getRepository(TestRun).findOne({
       where: { id: runId },
-      relations: { testcase: true }
+      relations: { testcase: true },
     });
 
     if (!run || !run.testcase) {
@@ -107,7 +108,7 @@ export class TaskQueue {
         screenshots_paths: [],
         logs: [],
         final_result: "",
-        final_reason: ""
+        final_reason: "",
       };
 
       await graph.invoke(initial_state);
@@ -118,21 +119,18 @@ export class TaskQueue {
       try {
         const crashPayload = TaskFSM.crash(error.message);
         await AppDataSource.getRepository(TestRun).update(runId, crashPayload);
-        
+
         // 發布事件
-        await AppDataSource.query(
-          `SELECT pg_notify('test_run_logs', $1)`,
-          [
-            JSON.stringify({
-              runId: runId,
-              status: crashPayload.status,
-              finalResult: crashPayload.finalResult,
-              finalReason: crashPayload.finalReason,
-              event: "completed",
-              timestamp: new Date().toISOString()
-            })
-          ]
-        );
+        await AppDataSource.query(`SELECT pg_notify('test_run_logs', $1)`, [
+          JSON.stringify({
+            runId: runId,
+            status: crashPayload.status,
+            finalResult: crashPayload.finalResult,
+            finalReason: crashPayload.finalReason,
+            event: "completed",
+            timestamp: new Date().toISOString(),
+          }),
+        ]);
       } catch (dbErr: any) {
         console.error("[Worker] 寫入資料庫錯誤狀態失敗：", dbErr.message);
       }
@@ -155,7 +153,7 @@ export class TaskQueue {
     console.log("[Queue] 啟動背景 Worker 輪詢佇列...");
     this.workerInterval = setInterval(async () => {
       if (this.isRunning) return; // 併發限制為 1，如果有任務在執行則跳過
-      
+
       this.isRunning = true;
       try {
         // 先清理超時任務
@@ -167,7 +165,7 @@ export class TaskQueue {
           await this.executeJob(runId);
         }
       } catch (error: any) {
-        console.error("[Queue] Worker 輪詢執行出錯：", error.message);
+        console.error("[Queue] Worker 輪詢執行出錯：", error);
       } finally {
         this.isRunning = false;
       }
