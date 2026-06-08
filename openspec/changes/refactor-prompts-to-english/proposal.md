@@ -18,5 +18,5 @@
 
 ## Impact
 
-- **程式碼修改：** 僅需修改 `src/graph.ts` 中的 System Prompt 字串常數。
+- **程式碼修改：** 僅需修改 `backend/src/graph/prompt.ts` 中的 System Prompt 字串常數。
 - **依賴與系統：** 無新增依賴，無外部系統影響。

@@ -1,6 +1,6 @@
 ## Context
 
-目前 E2E 測試管理器使用中文作為內置 System Prompts (定義於 `src/graph.ts` 中)。在實際測試中，中文提示詞對於 LLM (如 Gemini 3.1 Flash Lite) 的強制性約束表現不夠完美，容易導致 AI 代理在單一步驟中多執行重複的工具調用，或者未能在目標達成時立即終止步驟。本設計將重構這兩個節點的 System Prompts，採用結構化的英文以提升 AI 行為的精準度與指令遵循率。
+目前 E2E 測試管理器使用中文作為內置 System Prompts (定義於 `backend/src/graph/prompt.ts` 中)。在實際測試中，中文提示詞對於 LLM (如 Gemini 3.1 Flash Lite) 的強制性約束表現不夠完美，容易導致 AI 代理在單一步驟中多執行重複的工具調用，或者未能在目標達成時立即終止步驟。本設計將重構這兩個節點的 System Prompts，採用結構化的英文以提升 AI 行為的精準度與指令遵循率。
 
 ## Goals / Non-Goals
 
