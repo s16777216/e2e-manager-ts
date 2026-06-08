@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --background: 224 71.4% 4.1%;
+  --foreground: 210 20% 98%;
+
+  --card: 224 71.4% 4.1%;
+  --card-foreground: 210 20% 98%;
+
+  --popover: 224 71.4% 4.1%;
+  --popover-foreground: 210 20% 98%;
+
+  --primary: 263.4 70% 50.4%;
+  --primary-foreground: 210 20% 98%;
+
+  --secondary: 215 27.9% 16.9%;
+  --secondary-foreground: 210 20% 98%;
+
+  --muted: 215 27.9% 16.9%;
+  --muted-foreground: 217.9 10.6% 64.9%;
+
+  --accent: 215 27.9% 16.9%;
+  --accent-foreground: 210 20% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 20% 98%;
+
+  --border: 215 27.9% 16.9%;
+  --input: 215 27.9% 16.9%;
+  --ring: 263.4 70% 50.4%;
+
+  --radius: 0.75rem;
+}
+
+/* 為了支援 Tailwind v4，我們將 @apply border-border 改為原生 CSS 設定 */
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* 額外自訂的質感與滾動條樣式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

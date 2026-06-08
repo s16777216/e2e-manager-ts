@@ -1,0 +1,94 @@
+import type { Project, TestGroup, Testcase, TestRun } from "../types/api"
+
+const BASE_URL = "/api"
+
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers || {}),
+    },
+  })
+
+  if (!res.ok) {
+    let errMsg = "API 請求失敗"
+    try {
+      const errJson = await res.json()
+      errMsg = errJson.error || errMsg
+    } catch {
+      // Ignored
+    }
+    throw new Error(errMsg)
+  }
+
+  // 某些 DELETE 路由可能返回空或 204
+  if (res.status === 204) return {} as T
+
+  return res.json() as Promise<T>
+}
+
+export const api = {
+  // Project APIs
+  getProjects: () => request<Project[]>("/projects"),
+  createProject: (name: string, description?: string) =>
+    request<Project>("/projects", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+
+  // Group APIs
+  getGroups: (projectId: string) =>
+    request<TestGroup[]>(`/projects/${projectId}/groups`),
+  createGroup: (projectId: string, name: string, parentId?: string | null) =>
+    request<TestGroup>(`/projects/${projectId}/groups`, {
+      method: "POST",
+      body: JSON.stringify({ name, parentId }),
+    }),
+  updateGroup: (groupId: string, parentId: string | null) =>
+    request<TestGroup>(`/groups/${groupId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ parentId }),
+    }),
+  deleteGroup: (groupId: string) =>
+    request<{ message: string }>(`/groups/${groupId}`, {
+      method: "DELETE",
+    }),
+
+  // Testcase APIs
+  getTestcases: (groupId: string) =>
+    request<Testcase[]>(`/groups/${groupId}/testcases`),
+  createTestcase: (
+    groupId: string,
+    data: { name: string; steps: string[]; expected: string }
+  ) =>
+    request<Testcase>(`/groups/${groupId}/testcases`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateTestcase: (
+    testcaseId: string,
+    data: { name?: string; steps?: string[]; expected?: string }
+  ) =>
+    request<Testcase>(`/testcases/${testcaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTestcase: (testcaseId: string) =>
+    request<{ message: string }>(`/testcases/${testcaseId}`, {
+      method: "DELETE",
+    }),
+
+  // Run APIs
+  triggerRun: (testcaseId: string) =>
+    request<{ message: string; runId: string; status: string }>(
+      `/testcases/${testcaseId}/run`,
+      { method: "POST" }
+    ),
+  getRunStatus: (runId: string) => request<TestRun>(`/runs/${runId}`),
+  cancelRun: (runId: string) =>
+    request<{ message: string }>(`/runs/${runId}`, { method: "DELETE" }),
+
+  // SSE Stream URL helper
+  getStreamUrl: (runId: string) => `${BASE_URL}/runs/${runId}/stream`,
+}

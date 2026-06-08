@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 
 import { initDB } from "./db.js";
 import { TaskQueue } from "./queue.js";
@@ -16,6 +17,17 @@ app.route("/api/projects", projectRouter);
 app.route("/api", groupRouter);
 app.route("/api", testcaseRouter);
 app.route("/api", runRouter);
+
+// 託管前端編譯出來的靜態資源，並支援 SPA 路由
+app.use("/*", serveStatic({
+  root: "../frontend/dist",
+  rewriteRequestPath: (path) => {
+    if (path.includes(".") || path.startsWith("/api")) {
+      return path;
+    }
+    return "/index.html";
+  }
+}));
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 const queuePort = process.env.QUEUE_PORT
