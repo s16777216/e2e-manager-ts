@@ -9,19 +9,13 @@ import {
   Trash2,
   Edit2,
   FileText,
-  Clock,
   CheckCircle2,
   XCircle,
-  AlertTriangle,
   Loader2,
   Settings,
   Image as ImageIcon,
-  Check,
-  X,
   ChevronLeft,
-  Activity,
-  ArrowRight
-} from "lucide-react"
+  Activity} from "lucide-react"
 import { api } from "./lib/api"
 import type { Project, TestGroup, Testcase, TestRun, TestLog } from "./types/api"
 
