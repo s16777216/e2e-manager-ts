@@ -14,7 +14,7 @@ describe("狀態機 Prompt 拼接與條件路由單元測試", () => {
       });
 
       expect(prompt).toContain("會員註冊功能測試");
-      expect(prompt).toContain("第 2 步");
+      expect(prompt).toContain("Current Step (2)");
       expect(prompt).toContain("點擊同意服務條款");
       expect(prompt).toContain("https://example.com/register");
     });

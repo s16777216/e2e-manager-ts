@@ -3,6 +3,11 @@ import * as dotenv from "dotenv";
 import { parseTestCase } from "./parser.js";
 import { BrowserManager } from "./browser.js";
 import { E2EGraphBuilder } from "./graph.js";
+import { initDB, AppDataSource } from "./db.js";
+import { Project } from "./entities/Project.js";
+import { TestGroup } from "./entities/TestGroup.js";
+import { Testcase } from "./entities/Testcase.js";
+import { TestRun } from "./entities/TestRun.js";
 
 // 載入 .env 中的環境變數
 dotenv.config();
@@ -59,6 +64,55 @@ async function main() {
   const runDir = path.join(reportsDir, `run_${testCase.id}_${timestamp}`);
   console.log(`[E2E Manager] 測試報告與截圖將會輸出至：${path.resolve(runDir)}`);
 
+  // 3.5 初始化資料庫連線與 TestRun 紀錄
+  try {
+    await initDB();
+  } catch (err: any) {
+    console.error(`[E2E Manager] 資料庫連線失敗：${err.message}`);
+    process.exit(1);
+  }
+
+  const projectRepo = AppDataSource.getRepository(Project);
+  const groupRepo = AppDataSource.getRepository(TestGroup);
+  const testcaseRepo = AppDataSource.getRepository(Testcase);
+  const testRunRepo = AppDataSource.getRepository(TestRun);
+
+  let project = await projectRepo.findOne({ where: { name: "CLI Projects" } });
+  if (!project) {
+    project = new Project();
+    project.name = "CLI Projects";
+    project.description = "Project for CLI runs";
+    await projectRepo.save(project);
+  }
+
+  let group = await groupRepo.findOne({ where: { name: "CLI Group", project: { id: project.id } } });
+  if (!group) {
+    group = new TestGroup();
+    group.name = "CLI Group";
+    group.project = project;
+    await groupRepo.save(group);
+  }
+
+  let testcaseEntity = await testcaseRepo.findOne({ where: { name: testCase.name } });
+  if (!testcaseEntity) {
+    testcaseEntity = new Testcase();
+    testcaseEntity.name = testCase.name;
+    testcaseEntity.steps = testCase.steps;
+    testcaseEntity.expected = testCase.expected;
+    testcaseEntity.group = group;
+    await testcaseRepo.save(testcaseEntity);
+  } else {
+    testcaseEntity.steps = testCase.steps;
+    testcaseEntity.expected = testCase.expected;
+    await testcaseRepo.save(testcaseEntity);
+  }
+
+  const run = new TestRun();
+  run.testcase = testcaseEntity;
+  run.status = "running";
+  run.startedAt = new Date();
+  await testRunRepo.save(run);
+
   // 4. 初始化瀏覽器管理器
   const browserManager = new BrowserManager();
   
@@ -89,7 +143,8 @@ async function main() {
 
   // 6. 初始化初始 State
   const initial_state = {
-    test_id: testCase.id,
+    run_id: run.id,
+    test_id: testcaseEntity.id,
     test_name: testCase.name,
     steps: testCase.steps,
     expected: testCase.expected,
