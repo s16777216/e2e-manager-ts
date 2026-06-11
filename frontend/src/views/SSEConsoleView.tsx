@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSSEStream } from "../hooks/useSSEStream"
 
 export default function SSEConsoleView() {
-  const { runId } = useParams();
+  const { projectId, runId } = useParams();
   const navigate = useNavigate();
 
   // SSE 狀態連線
@@ -39,7 +39,13 @@ export default function SSEConsoleView() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (projectId && runStatus?.testcaseId) {
+                navigate(`/project/${projectId}/testCase/${runStatus.testcaseId}`)
+              } else {
+                navigate(-1)
+              }
+            }}
             className="text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft size={18} />

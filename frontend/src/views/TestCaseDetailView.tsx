@@ -1,0 +1,450 @@
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import { api } from "../lib/api"
+import type { Testcase } from "../types/api"
+import { ChevronLeft, Play, Edit, Trash2, Plus, Calendar, Activity, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
+
+export default function TestCaseDetailView() {
+  const { projectId, testCaseId } = useParams()
+  const navigate = useNavigate()
+
+  // 測試劇本狀態
+  const [testcase, setTestcase] = useState<Testcase | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // 編輯模式狀態
+  const [isEditing, setIsEditing] = useState(false)
+  const [tcName, setTcName] = useState("")
+  const [tcSteps, setTcSteps] = useState<string[]>([""])
+  const [tcExpected, setTcExpected] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  // 執行測試狀態
+  const [isTriggering, setIsTriggering] = useState(false)
+
+  // 當前 Active Tab: "steps" | "history"
+  const [activeTab, setActiveTab] = useState<"steps" | "history">("steps")
+
+  // 當 testCaseId 變更時，在 render 階段重設編輯模式與分頁狀態，避免 useEffect 中同步 setState 造成 cascading renders
+  const [prevTestCaseId, setPrevTestCaseId] = useState(testCaseId)
+  if (testCaseId !== prevTestCaseId) {
+    setPrevTestCaseId(testCaseId)
+    setIsEditing(false)
+    setActiveTab("steps")
+    setIsLoading(true)
+  }
+
+  // 載入劇本詳情與執行紀錄
+  const loadTestCaseData = useCallback(async () => {
+    if (!testCaseId) return
+    try {
+      const data = await api.getTestcaseDetail(testCaseId)
+      setTestcase(data)
+      // 同步設定編輯欄位
+      setTcName(data.name)
+      setTcSteps(data.steps.length > 0 ? [...data.steps] : [""])
+      setTcExpected(data.expected)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("載入測試劇本失敗：" + msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [testCaseId])
+
+  useEffect(() => {
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) {
+        loadTestCaseData()
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [loadTestCaseData])
+
+  // 步驟表單增減
+  const handleAddStepInput = () => {
+    setTcSteps([...tcSteps, ""])
+  }
+
+  const handleRemoveStepInput = (index: number) => {
+    if (tcSteps.length === 1) return
+    const newSteps = [...tcSteps]
+    newSteps.splice(index, 1)
+    setTcSteps(newSteps)
+  }
+
+  const handleStepValueChange = (index: number, val: string) => {
+    const newSteps = [...tcSteps]
+    newSteps[index] = val
+    setTcSteps(newSteps)
+  }
+
+  // 儲存修改
+  const handleSaveEdit = async () => {
+    if (!testCaseId) return
+    if (!tcName.trim() || tcSteps.some((s) => !s.trim()) || !tcExpected.trim()) {
+      toast.error("請填寫所有必填欄位，且步驟不可為空！")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await api.updateTestcase(testCaseId, {
+        name: tcName.trim(),
+        steps: tcSteps.map((s) => s.trim()),
+        expected: tcExpected.trim()
+      })
+      toast.success("測試劇本修改成功！")
+      setIsEditing(false)
+      await loadTestCaseData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("修改測試案例失敗：" + msg)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // 執行測試
+  const handleRunTestCase = async () => {
+    if (!testCaseId) return
+    setIsTriggering(true)
+    try {
+      const res = await api.triggerRun(testCaseId)
+      toast.success("測試任務已啟動！正在轉跳監控頁面...")
+      // 跳轉到 SSE 即時監控頁面
+      navigate(`/project/${projectId}/run/${res.runId}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("執行測試失敗：" + msg)
+    } finally {
+      setIsTriggering(false)
+    }
+  }
+
+  // 狀態徽章輔助元件
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "passed":
+        return (
+          <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+            <CheckCircle size={10} /> 成功 (Passed)
+          </span>
+        )
+      case "failed":
+      case "error":
+        return (
+          <span className="flex items-center gap-1 text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full font-medium">
+            <XCircle size={10} /> 失敗 ({status.toUpperCase()})
+          </span>
+        )
+      case "running":
+        return (
+          <span className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full font-medium">
+            <Loader2 size={10} className="animate-spin" /> 執行中 (Running)
+          </span>
+        )
+      default:
+        return (
+          <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-full font-medium">
+            <Clock size={10} /> 排隊中 (Pending)
+          </span>
+        )
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-400">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 size={24} className="animate-spin text-zinc-500" />
+          <span className="text-xs italic">載入劇本詳情中...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!testcase) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-zinc-950 text-zinc-400 gap-4">
+        <p className="text-sm">找不到指定的測試劇本資料</p>
+        <Button onClick={() => navigate(`/project/${projectId}`)}>返回專案</Button>
+      </div>
+    )
+  }
+
+  // 將執行紀錄排序，最新的排在前面
+  const sortedRuns = testcase.runs ? [...testcase.runs].sort((a, b) => {
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  }) : []
+
+  return (
+    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-hidden select-none">
+      
+      {/* 頂部控制列 */}
+      <header className="px-8 py-5 border-b border-zinc-900 bg-zinc-900/20 backdrop-blur-md flex items-center justify-between flex-shrink-0 animate-fadeIn">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(`/project/${projectId}`)}
+            className="border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-100"
+          >
+            <ChevronLeft size={16} />
+          </Button>
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-zinc-100">
+              {isEditing ? "編輯劇本" : testcase.name}
+            </h2>
+            <p className="text-xs font-mono text-zinc-500 mt-1">ID: {testcase.id}</p>
+          </div>
+        </div>
+
+        {/* 右側操作按鈕 */}
+        <div className="flex items-center gap-2">
+          {!isEditing && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                className="border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100 text-zinc-300 gap-1.5"
+              >
+                <Edit size={14} /> 編輯劇本
+              </Button>
+              <Button
+                onClick={handleRunTestCase}
+                disabled={isTriggering}
+                className="bg-emerald-600 text-white hover:bg-emerald-500 font-semibold gap-1.5 shadow-lg shadow-emerald-600/10"
+              >
+                {isTriggering ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="white" />}
+                執行測試
+              </Button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* Tabs 控制按鈕 (Bento Style) */}
+      <div className="px-8 pt-4 border-b border-zinc-900/50 bg-zinc-950 flex gap-2">
+        <button
+          onClick={() => {
+            if (!isEditing) {
+              setActiveTab("steps")
+            }
+          }}
+          disabled={isEditing}
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+            activeTab === "steps"
+              ? "border-primary text-zinc-200"
+              : "border-transparent text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+          }`}
+        >
+          測試步驟 (Steps)
+        </button>
+        <button
+          onClick={() => {
+            if (!isEditing) {
+              setActiveTab("history")
+            }
+          }}
+          disabled={isEditing}
+          className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+            activeTab === "history"
+              ? "border-primary text-zinc-200"
+              : "border-transparent text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+          }`}
+        >
+          執行歷史 ({sortedRuns.length})
+        </button>
+      </div>
+
+      {/* 主要內容區 (ScrollArea 包裹) */}
+      <ScrollArea className="flex-1 bg-zinc-950/40">
+        <div className="p-8 max-w-4xl">
+          
+          {/* Steps Tab */}
+          {activeTab === "steps" && (
+            <div className="flex flex-col gap-6">
+              
+              {/* 編輯模式表單 */}
+              {isEditing ? (
+                <div className="bg-zinc-900/30 border border-zinc-850 rounded-2xl p-6 flex flex-col gap-5 shadow-lg">
+                  {/* 編輯名稱 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      劇本名稱 <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="text"
+                      value={tcName}
+                      onChange={(e) => setTcName(e.target.value)}
+                      placeholder="修改劇本名稱"
+                      className="bg-zinc-950 border-zinc-800 text-zinc-100"
+                    />
+                  </div>
+
+                  {/* 編輯自然語言步驟 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      測試步驟 (自然語言描述) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex flex-col gap-2.5">
+                      {tcSteps.map((step, idx) => (
+                        <div key={idx} className="flex gap-2">
+                          <span className="flex items-center justify-center bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 rounded px-2 w-7 font-mono flex-shrink-0">
+                            {idx + 1}
+                          </span>
+                          <Input
+                            type="text"
+                            value={step}
+                            onChange={(e) => handleStepValueChange(idx, e.target.value)}
+                            placeholder="描述執行動作，如：點擊 '送出' 按鈕"
+                            className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100"
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleRemoveStepInput(idx)}
+                            className="border-zinc-800 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 flex-shrink-0"
+                          >
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddStepInput}
+                        className="self-start text-[10px] border-zinc-850"
+                      >
+                        <Plus size={10} /> 新增下一步
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 編輯預期結果 */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      預期結果 <span className="text-red-500">*</span>
+                    </label>
+                    <Textarea
+                      value={tcExpected}
+                      onChange={(e) => setTcExpected(e.target.value)}
+                      placeholder="修改預期結果"
+                      rows={3}
+                      className="resize-none bg-zinc-950 border-zinc-800 text-zinc-100"
+                    />
+                  </div>
+
+                  {/* 表單底操作 */}
+                  <div className="flex justify-end gap-2 border-t border-zinc-850 pt-4 mt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditing(false)
+                        // 還原資料
+                        setTcName(testcase.name)
+                        setTcSteps([...testcase.steps])
+                        setTcExpected(testcase.expected)
+                      }}
+                      className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
+                    >
+                      取消
+                    </Button>
+                    <Button
+                      onClick={handleSaveEdit}
+                      disabled={isSaving}
+                      className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
+                    >
+                      {isSaving ? <Loader2 size={14} className="animate-spin" /> : "儲存修改"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // 唯讀檢視模式
+                <div className="flex flex-col gap-6">
+                  {/* 測試步驟 Card */}
+                  <div className="bg-zinc-900/20 border border-zinc-850 rounded-2xl p-6 shadow-md flex flex-col gap-4">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                      步驟詳情 (Steps)
+                    </h4>
+                    <div className="flex flex-col gap-3">
+                      {testcase.steps.map((step, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <span className="h-6 w-6 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-300 font-mono">
+                            {idx + 1}
+                          </span>
+                          <span className="text-sm text-zinc-300">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 預期結果 Card */}
+                  <div className="bg-zinc-900/20 border border-zinc-850 rounded-2xl p-6 shadow-md flex flex-col gap-3">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                      預期結果 (Expected)
+                    </h4>
+                    <p className="text-sm text-zinc-300 leading-relaxed bg-zinc-950/40 p-4 rounded-xl border border-zinc-900 font-medium">
+                      {testcase.expected}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* History Tab */}
+          {activeTab === "history" && (
+            <div className="flex flex-col gap-4">
+              {sortedRuns.length === 0 ? (
+                <div className="text-center py-20 text-xs text-zinc-500 italic border border-dashed border-zinc-850 rounded-2xl">
+                  暫無歷史執行紀錄。點擊右上方「執行測試」以啟動第一次視覺測試！
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {sortedRuns.map((run) => (
+                    <div
+                      key={run.id}
+                      onClick={() => navigate(`/project/${projectId}/run/${run.id}`)}
+                      className="group relative bg-zinc-900/30 border border-zinc-850 rounded-xl p-4 cursor-pointer hover:border-zinc-700 transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* 狀態圖示 */}
+                        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-zinc-950 border border-zinc-850 text-zinc-400">
+                          <Activity size={16} className={run.status === "running" ? "animate-pulse text-primary" : ""} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-mono text-zinc-300 group-hover:text-zinc-100 transition-colors">
+                            執行編號: {run.id.substring(0, 8)}...
+                          </p>
+                          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 mt-1 font-mono">
+                            <Calendar size={10} />
+                            <span>{new Date(run.createdAt || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {renderStatusBadge(run.status)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}

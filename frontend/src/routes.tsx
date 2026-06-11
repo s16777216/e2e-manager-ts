@@ -1,9 +1,9 @@
 import { createBrowserRouter, Navigate } from "react-router-dom"
 import RootLayout from "./layouts/RootLayout"
-import ProjectLayout from "./layouts/ProjectLayout"
 import WelcomeView from "./views/WelcomeView"
-import SelectGroupPrompt from "./views/SelectGroupPrompt"
-import GroupDashboardView from "./views/GroupDashboardView"
+import ProjectsView from "./views/ProjectsView"
+import ProjectDetailView from "./views/ProjectDetailView"
+import TestCaseDetailView from "./views/TestCaseDetailView"
 import SSEConsoleView from "./views/SSEConsoleView"
 
 export const router = createBrowserRouter([
@@ -16,21 +16,19 @@ export const router = createBrowserRouter([
         element: <WelcomeView />
       },
       {
-        path: "projects/:projectId",
-        element: <ProjectLayout />,
-        children: [
-          {
-            index: true,
-            element: <SelectGroupPrompt />
-          },
-          {
-            path: "groups/:groupId",
-            element: <GroupDashboardView />
-          }
-        ]
+        path: "project",
+        element: <ProjectsView />
       },
       {
-        path: "runs/:runId",
+        path: "project/:projectId",
+        element: <ProjectDetailView />
+      },
+      {
+        path: "project/:projectId/testCase/:testCaseId",
+        element: <TestCaseDetailView />
+      },
+      {
+        path: "project/:projectId/run/:runId",
         element: <SSEConsoleView />
       },
       {
@@ -40,3 +38,4 @@ export const router = createBrowserRouter([
     ]
   }
 ])
+

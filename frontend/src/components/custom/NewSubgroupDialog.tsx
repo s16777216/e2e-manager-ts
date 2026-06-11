@@ -7,7 +7,7 @@ interface NewSubgroupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   parentId: string | null
-  onCreateGroup: (name: string, parentId: string | null) => Promise<any>
+  onCreateGroup: (name: string, parentId: string | null) => Promise<unknown>
 }
 
 export function NewSubgroupDialog({ open, onOpenChange, parentId, onCreateGroup }: NewSubgroupDialogProps) {

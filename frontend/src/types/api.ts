@@ -27,9 +27,11 @@ export interface Testcase {
 
 export interface TestRun {
   id: string;
+  testcaseId?: string | null;
   status: "pending" | "running" | "passed" | "failed" | "error";
   startedAt?: string;
   finishedAt?: string;
+  createdAt?: string;
   finalResult?: string;
   finalReason?: string;
   screenshotFailUrl?: string;

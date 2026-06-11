@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { Plus, Trash2, Edit2, Play, FileText, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useTestcaseData } from "../hooks/useTestcaseData"
 import { useSSEStream } from "../hooks/useSSEStream"
-import type { TestGroup } from "../types/api"
+import type { TestGroup, Testcase } from "../types/api"
 
 export default function GroupDashboardView() {
   const { groupId } = useParams();
@@ -34,12 +34,14 @@ export default function GroupDashboardView() {
 
   const [isTriggering, setIsTriggering] = useState<string | null>(null);
 
-  // 當切換群組時，重置表單狀態
-  useEffect(() => {
+  // 當切換群組時，在 render 階段重置表單狀態，避免 useEffect 中同步 setState 造成 cascading renders
+  const [prevGroupId, setPrevGroupId] = useState(groupId);
+  if (groupId !== prevGroupId) {
+    setPrevGroupId(groupId);
     setShowNewTestcaseForm(false);
     setIsEditingTestcase(false);
     setEditingTcId(null);
-  }, [groupId]);
+  }
 
   // 表單 Zod 步驟增減
   const handleAddStepInput = () => {
@@ -70,7 +72,7 @@ export default function GroupDashboardView() {
   };
 
   // 開始編輯劇本
-  const startEdit = (tc: any) => {
+  const startEdit = (tc: Testcase) => {
     setTcName(tc.name);
     setTcSteps(tc.steps);
     setTcExpected(tc.expected);

@@ -49,6 +49,7 @@ testcaseRouter.get("/testcases/:id", async (c) => {
   const id = c.req.param("id");
   const testcase = await AppDataSource.getRepository(Testcase).findOne({
     where: { id },
+    relations: { runs: true },
   });
   if (!testcase) return c.json({ error: "找不到測試案例" }, 404);
   return c.json(testcase);

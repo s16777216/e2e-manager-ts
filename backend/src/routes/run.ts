@@ -38,7 +38,7 @@ runRouter.get("/runs/:runId", async (c) => {
   const runId = c.req.param("runId");
   const run = await AppDataSource.getRepository(TestRun).findOne({
     where: { id: runId },
-    relations: { logs: true },
+    relations: { logs: true, testcase: true },
   });
 
   if (!run) return c.json({ error: "找不到該任務紀錄" }, 404);
@@ -55,6 +55,7 @@ runRouter.get("/runs/:runId", async (c) => {
 
   return c.json({
     runId: run.id,
+    testcaseId: run.testcase?.id || null,
     status: run.status,
     startedAt: run.startedAt,
     finishedAt: run.finishedAt,

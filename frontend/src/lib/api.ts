@@ -78,6 +78,8 @@ export const api = {
     request<{ message: string }>(`/testcases/${testcaseId}`, {
       method: "DELETE",
     }),
+  getTestcaseDetail: (testcaseId: string) =>
+    request<Testcase>(`/testcases/${testcaseId}`),
 
   // Run APIs
   triggerRun: (testcaseId: string) =>
