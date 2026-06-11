@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useParams, useOutletContext } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
@@ -15,14 +15,14 @@ import { toast } from "sonner"
 
 import type { TestGroup, Testcase } from "../types/api"
 
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbPage,
-  BreadcrumbSeparator
-} from "@/components/ui/breadcrumb"
+interface BreadcrumbItemType {
+  label: string
+  to?: string
+}
+
+interface OutletContextType {
+  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void
+}
 
 export default function ProjectDetailView() {
   const { projectId } = useParams()
@@ -30,6 +30,31 @@ export default function ProjectDetailView() {
   // 專案資訊
   const { projects } = useProjectData()
   const activeProject = projects.find((p) => p.id === projectId)
+
+  const { setBreadcrumbs } = useOutletContext<OutletContextType>()
+
+  useEffect(() => {
+    if (activeProject) {
+      Promise.resolve().then(() => {
+        setBreadcrumbs([
+          { label: "專案列表", to: "/project" },
+          { label: activeProject.name }
+        ])
+      })
+    } else {
+      Promise.resolve().then(() => {
+        setBreadcrumbs([
+          { label: "專案列表", to: "/project" },
+          { label: "載入中..." }
+        ])
+      })
+    }
+    return () => {
+      Promise.resolve().then(() => {
+        setBreadcrumbs([])
+      })
+    }
+  }, [activeProject, setBreadcrumbs])
 
   // 群組樹狀態
   const {
@@ -266,25 +291,9 @@ export default function ProjectDetailView() {
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8">
       
-      {/* 頂部 Header & 麵包屑 */}
+      {/* 頂部 Header & 麵包屑已移至全域 */}
       <div className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
         <div>
-          <Breadcrumb className="mb-2.5">
-            <BreadcrumbList className="text-zinc-400">
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link to="/project" className="hover:text-zinc-100">專案列表</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-zinc-600" />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="text-zinc-200">
-                  {activeProject ? activeProject.name : "載入中..."}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          
           <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2">
             <Sparkles size={20} className="text-primary animate-pulse" />
             {activeProject ? activeProject.name : "載入專案中..."}
@@ -319,11 +328,6 @@ export default function ProjectDetailView() {
 
       {/* 劇本樹狀表格目錄 */}
       <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col">
-        {selectedGroupId && (
-          <div className="text-xs text-zinc-500 font-mono mb-2">
-            目前選定群組: {selectedGroupId} (新測試案例將預選此群組)
-          </div>
-        )}
 
         <div className="border border-zinc-850 bg-zinc-900/30 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
           {loadingGroups ? (

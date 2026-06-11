@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useOutletContext } from "react-router-dom"
+import { useProjectData } from "../hooks/useProjectData"
 import { api } from "../lib/api"
 import type { Testcase } from "../types/api"
 import { ChevronLeft, Play, Edit, Trash2, Plus, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
@@ -9,6 +10,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 
+interface BreadcrumbItemType {
+  label: string
+  to?: string
+}
+
+interface OutletContextType {
+  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void
+}
+
 export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams()
   const navigate = useNavigate()
@@ -16,6 +26,28 @@ export default function TestCaseDetailView() {
   // 測試劇本狀態
   const [testcase, setTestcase] = useState<Testcase | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // 專案與全域麵包屑
+  const { projects } = useProjectData()
+  const activeProject = projects.find((p) => p.id === projectId)
+  const { setBreadcrumbs } = useOutletContext<OutletContextType>()
+
+  useEffect(() => {
+    const projectName = activeProject ? activeProject.name : "載入中..."
+    const tcNameText = testcase ? testcase.name : "載入中..."
+    Promise.resolve().then(() => {
+      setBreadcrumbs([
+        { label: "專案列表", to: "/project" },
+        { label: projectName, to: `/project/${projectId}` },
+        { label: tcNameText }
+      ])
+    })
+    return () => {
+      Promise.resolve().then(() => {
+        setBreadcrumbs([])
+      })
+    }
+  }, [projectId, activeProject, testcase, setBreadcrumbs])
 
   // 編輯模式狀態
   const [isEditing, setIsEditing] = useState(false)
@@ -189,8 +221,8 @@ export default function TestCaseDetailView() {
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-hidden select-none">
       
-      {/* 頂部控制列 */}
-      <header className="px-8 py-5 border-b border-zinc-900 bg-zinc-900/20 backdrop-blur-md flex items-center justify-between flex-shrink-0 animate-fadeIn">
+      {/* 頂部控制列 - 頁面內部控制工具欄 */}
+      <div className="px-8 py-6 flex items-center justify-between flex-shrink-0 animate-fadeIn gap-4">
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
@@ -230,7 +262,7 @@ export default function TestCaseDetailView() {
             </>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Tabs 控制按鈕 (Bento Style) */}
       <div className="px-8 pt-4 border-b border-zinc-900/50 bg-zinc-950 flex gap-2">
@@ -268,7 +300,7 @@ export default function TestCaseDetailView() {
 
       {/* 主要內容區 (ScrollArea 包裹) */}
       <ScrollArea className="flex-1 bg-zinc-950/40">
-        <div className="p-8 max-w-4xl">
+        <div className="p-8">
           
           {/* Steps Tab */}
           {activeTab === "steps" && (

@@ -1,9 +1,21 @@
-import { useEffect, useRef } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useEffect, useRef, useState } from "react"
+import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { ChevronLeft, Loader2, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSSEStream } from "../hooks/useSSEStream"
+import { useProjectData } from "../hooks/useProjectData"
+import type { Testcase } from "../types/api"
+import { api } from "../lib/api"
+
+interface BreadcrumbItemType {
+  label: string
+  to?: string
+}
+
+interface OutletContextType {
+  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void
+}
 
 export default function SSEConsoleView() {
   const { projectId, runId } = useParams();
@@ -21,6 +33,48 @@ export default function SSEConsoleView() {
 
   const timelineEndRef = useRef<HTMLDivElement | null>(null);
 
+  const [testcase, setTestcase] = useState<Testcase | null>(null);
+
+  useEffect(() => {
+    if (!runStatus?.testcaseId) return;
+    let active = true;
+    api.getTestcaseDetail(runStatus.testcaseId)
+      .then((data) => {
+        if (active) {
+          setTestcase(data);
+        }
+      })
+      .catch((err) => {
+        console.error("載入監控劇本詳情失敗:", err);
+      });
+    return () => {
+      active = false;
+    };
+  }, [runStatus?.testcaseId]);
+
+  const { projects } = useProjectData();
+  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
+
+  const foundProject = projects.find(p => p.id === projectId);
+
+  useEffect(() => {
+    const projectName = foundProject ? foundProject.name : "載入中...";
+    const tcName = testcase ? testcase.name : "載入中...";
+    Promise.resolve().then(() => {
+      setBreadcrumbs([
+        { label: "專案列表", to: "/project" },
+        { label: projectName, to: `/project/${projectId}` },
+        { label: tcName, to: runStatus?.testcaseId ? `/project/${projectId}/testCase/${runStatus.testcaseId}` : undefined },
+        { label: `執行紀錄 #${runId?.substring(0, 8)}` }
+      ]);
+    });
+    return () => {
+      Promise.resolve().then(() => {
+        setBreadcrumbs([]);
+      });
+    };
+  }, [projectId, runId, foundProject, testcase, runStatus?.testcaseId, setBreadcrumbs]);
+
   // 滾動至最新步驟
   useEffect(() => {
     if (timelineEndRef.current) {
@@ -33,8 +87,8 @@ export default function SSEConsoleView() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Console 頂部控制列 */}
-      <header className="px-6 py-4 border-b bg-card/50 backdrop-blur-md flex items-center justify-between">
+      {/* Console 頂部控制列 - 頁面內部控制工具欄 */}
+      <div className="px-6 py-5 flex items-center justify-between flex-shrink-0 gap-4 animate-fadeIn">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -88,7 +142,7 @@ export default function SSEConsoleView() {
             </div>
           )}
         </div>
-      </header>
+      </div>
 
       {/* Console 左右分欄 */}
       <div className="flex-1 flex overflow-hidden min-h-0">
