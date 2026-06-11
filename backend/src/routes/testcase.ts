@@ -9,6 +9,7 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
   const testcases = await AppDataSource.getRepository(Testcase).find({
     where: { group: { id: groupId } },
+    relations: { runs: true },
   });
   return c.json(testcases);
 });

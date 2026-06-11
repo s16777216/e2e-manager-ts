@@ -5,7 +5,6 @@ import ProjectsView from "./views/ProjectsView"
 import ProjectDetailView from "./views/ProjectDetailView"
 import TestCaseDetailView from "./views/TestCaseDetailView"
 import SSEConsoleView from "./views/SSEConsoleView"
-import SelectGroupPrompt from "./views/SelectGroupPrompt"
 
 export const router = createBrowserRouter([
   {
@@ -22,21 +21,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "project/:projectId",
-        element: <ProjectDetailView />,
-        children: [
-          {
-            index: true,
-            element: <SelectGroupPrompt />
-          },
-          {
-            path: "testCase/:testCaseId",
-            element: <TestCaseDetailView />
-          },
-          {
-            path: "run/:runId",
-            element: <SSEConsoleView />
-          }
-        ]
+        element: <ProjectDetailView />
+      },
+      {
+        path: "project/:projectId/testCase/:testCaseId",
+        element: <TestCaseDetailView />
+      },
+      {
+        path: "project/:projectId/run/:runId",
+        element: <SSEConsoleView />
       },
       {
         path: "*",

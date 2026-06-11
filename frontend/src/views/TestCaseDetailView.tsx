@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { api } from "../lib/api"
 import type { Testcase } from "../types/api"
-import { ChevronLeft, Play, Edit, Trash2, Plus, Calendar, Activity, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
+import { ChevronLeft, Play, Edit, Trash2, Plus, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -410,34 +410,80 @@ export default function TestCaseDetailView() {
                   暫無歷史執行紀錄。點擊右上方「執行測試」以啟動第一次視覺測試！
                 </div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  {sortedRuns.map((run) => (
-                    <div
-                      key={run.id}
-                      onClick={() => navigate(`/project/${projectId}/run/${run.id}`)}
-                      className="group relative bg-zinc-900/30 border border-zinc-850 rounded-xl p-4 cursor-pointer hover:border-zinc-700 transition-colors flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-4">
-                        {/* 狀態圖示 */}
-                        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-zinc-950 border border-zinc-850 text-zinc-400">
-                          <Activity size={16} className={run.status === "running" ? "animate-pulse text-primary" : ""} />
-                        </div>
-                        <div>
-                          <p className="text-xs font-mono text-zinc-300 group-hover:text-zinc-100 transition-colors">
-                            執行編號: {run.id.substring(0, 8)}...
-                          </p>
-                          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 mt-1 font-mono">
-                            <Calendar size={10} />
-                            <span>{new Date(run.createdAt || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
+                <div className="border border-zinc-850 bg-zinc-900/30 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-zinc-300">
+                      <thead>
+                        <tr className="border-b border-zinc-850 bg-zinc-950/40 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                          <th className="px-6 py-4">執行編號</th>
+                          <th className="px-6 py-4">狀態</th>
+                          <th className="px-6 py-4">啟動時間</th>
+                          <th className="px-6 py-4">執行耗時</th>
+                          <th className="px-6 py-4">最終審查結論</th>
+                          <th className="px-6 py-4 text-right">操作</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-850/50 text-sm">
+                        {sortedRuns.map((run) => {
+                          // 計算執行耗時
+                          let duration = "-"
+                          if (run.createdAt && run.finishedAt) {
+                            const start = new Date(run.createdAt).getTime()
+                            const end = new Date(run.finishedAt).getTime()
+                            if (!isNaN(start) && !isNaN(end)) {
+                              const diff = end - start
+                              duration = diff < 0 ? "0s" : `${Math.round(diff / 1000)}s`
+                            }
+                          }
 
-                      <div className="flex items-center gap-3">
-                        {renderStatusBadge(run.status)}
-                      </div>
-                    </div>
-                  ))}
+                          // 格式化最終審查結論
+                          const reasonShort = run.finalReason
+                            ? run.finalReason.length <= 25
+                              ? run.finalReason
+                              : `${run.finalReason.substring(0, 25)}...`
+                            : "無"
+
+                          return (
+                            <tr
+                              key={run.id}
+                              onClick={() => navigate(`/project/${projectId}/run/${run.id}`)}
+                              className="group cursor-pointer hover:bg-zinc-900/20 transition-colors"
+                            >
+                              {/* 執行編號 */}
+                              <td className="px-6 py-4 font-mono text-zinc-200 group-hover:text-primary transition-colors">
+                                #{run.id.substring(0, 8)}
+                              </td>
+                              {/* 狀態 */}
+                              <td className="px-6 py-4">
+                                {renderStatusBadge(run.status)}
+                              </td>
+                              {/* 啟動時間 */}
+                              <td className="px-6 py-4 text-zinc-400 text-xs font-mono">
+                                {new Date(run.createdAt || 0).toLocaleString()}
+                              </td>
+                              {/* 執行耗時 */}
+                              <td className="px-6 py-4 text-zinc-400 text-xs font-mono">
+                                {duration}
+                              </td>
+                              {/* 最終審查結論 */}
+                              <td
+                                className="px-6 py-4 text-zinc-400 text-xs max-w-xs truncate"
+                                title={run.finalReason || ""}
+                              >
+                                {reasonShort}
+                              </td>
+                              {/* 操作 */}
+                              <td className="px-6 py-4 text-right">
+                                <span className="text-xs text-zinc-500 group-hover:text-zinc-300 font-medium transition-colors">
+                                  查看詳情 &rarr;
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

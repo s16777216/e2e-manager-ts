@@ -1,202 +1,196 @@
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import type { TestGroup, Testcase } from "../../types/api"
-import { api } from "../../lib/api"
 import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+
+export interface FlatTreeRow {
+  id: string;
+  name: string;
+  type: "group" | "testcase" | "loading";
+  depth: number;
+  isExpanded: boolean;
+  hasChildren: boolean;
+  itemCount: number;
+  lastStatus?: "pending" | "running" | "passed" | "failed" | "error";
+  parentId: string | null;
+}
 
 interface GroupTreeNodeProps {
-  node: TestGroup & { children?: TestGroup[] }
-  depth?: number
-  selectedGroupId: string
-  setSelectedGroupId: (id: string) => void
-  expandedGroups: Record<string, boolean>
-  setExpandedGroups: (expanded: Record<string, boolean>) => void
-  onAddSubgroup: (parentId: string) => void
-  onDeleteGroup: (groupId: string) => void
-  projectId: string
-  refreshTrigger?: number
+  row: FlatTreeRow;
+  selectedGroupId: string;
+  setSelectedGroupId: (id: string) => void;
+  activeTestCaseId?: string;
+  onToggleExpand: (groupId: string) => void;
+  onAddSubgroup: (parentId: string) => void;
+  onDeleteGroup: (groupId: string) => void;
+  projectId: string;
 }
 
 export function GroupTreeNode({
-  node,
-  depth = 0,
+  row,
   selectedGroupId,
   setSelectedGroupId,
-  expandedGroups,
-  setExpandedGroups,
+  activeTestCaseId,
+  onToggleExpand,
   onAddSubgroup,
   onDeleteGroup,
-  projectId,
-  refreshTrigger = 0
+  projectId
 }: GroupTreeNodeProps) {
   const navigate = useNavigate()
-  const isExpanded = expandedGroups[node.id] || false
-  const hasChildren = node.children && node.children.length > 0
-  const isSelected = selectedGroupId === node.id
 
-  // 測試案例懶加載狀態
-  const [testcases, setTestcases] = useState<Testcase[]>([])
-  const [loadingTestcases, setLoadingTestcases] = useState(false)
-  const [hasLoaded, setHasLoaded] = useState(false)
+  // 判斷選取狀態
+  const isSelected = row.type === "group" 
+    ? selectedGroupId === row.id 
+    : activeTestCaseId === row.id;
 
-  // 當 node.id 或 refreshTrigger 改變時，在 render 階段同步重設加載狀態，避免 effect 中的 cascading renders
-  const [prevNodeId, setPrevNodeId] = useState(node.id)
-  const [prevRefreshTrigger, setPrevRefreshTrigger] = useState(refreshTrigger)
-
-  if (node.id !== prevNodeId || refreshTrigger !== prevRefreshTrigger) {
-    setPrevNodeId(node.id)
-    setPrevRefreshTrigger(refreshTrigger)
-    setHasLoaded(false)
-    setTestcases([])
-    setLoadingTestcases(false)
-  }
-
-  // 當展開且尚未載入且不處於載入狀態時，在 render 階段設定為載入中，避免在 effect 中同步呼叫 setState
-  if (isExpanded && !hasLoaded && !loadingTestcases) {
-    setLoadingTestcases(true)
-  }
-
-  // 懶加載測試案例
-  useEffect(() => {
-    if (!isExpanded || hasLoaded) return
-
-    let active = true
-    api.getTestcases(node.id)
-      .then((data) => {
-        if (active) {
-          setTestcases(data)
-          setHasLoaded(true)
-        }
-      })
-      .catch((err) => {
-        console.error(`載入群組 ${node.name} 的測試案例失敗:`, err)
-      })
-      .finally(() => {
-        if (active) {
-          setLoadingTestcases(false)
-        }
-      })
-
-    return () => {
-      active = false
+  // 處理點擊整列行為
+  const handleRowClick = () => {
+    if (row.type === "group") {
+      setSelectedGroupId(row.id)
+      onToggleExpand(row.id)
+    } else if (row.type === "testcase") {
+      navigate(`/project/${projectId}/testCase/${row.id}`)
     }
-  }, [isExpanded, node.id, hasLoaded, node.name])
-
-  const handleGroupClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedGroupId(node.id)
-    setExpandedGroups({
-      ...expandedGroups,
-      [node.id]: !isExpanded
-    })
   }
 
-  const hasAnyChildren = hasChildren || testcases.length > 0
+  // 渲染狀態 Badge
+  const renderStatusBadge = (status?: string) => {
+    if (!status) return <span className="text-zinc-600">-</span>;
+    
+    switch (status) {
+      case "passed":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Passed
+          </span>
+        )
+      case "failed":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            Failed
+          </span>
+        )
+      case "running":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
+            Running
+          </span>
+        )
+      case "error":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            Error
+          </span>
+        )
+      case "pending":
+      default:
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+            Pending
+          </span>
+        )
+    }
+  }
 
+  // 1. Loading Row 渲染
+  if (row.type === "loading") {
+    return (
+      <tr className="border-b border-zinc-850/30 text-zinc-500">
+        <td className="px-6 py-4 text-sm italic" style={{ paddingLeft: `${row.depth * 20 + 16}px` }}>
+          <div className="flex items-center gap-1.5">
+            <Loader2 size={12} className="animate-spin text-zinc-500" />
+            <span>載入劇本中...</span>
+          </div>
+        </td>
+        <td className="px-6 py-4 text-sm">-</td>
+        <td className="px-6 py-4 text-sm text-center">-</td>
+        <td className="px-6 py-4 text-sm text-right">-</td>
+      </tr>
+    )
+  }
+
+  // 2. 一般 Row (Group / TestCase) 渲染
   return (
-    <div className="select-none">
-      <div
-        style={{ paddingLeft: `${depth * 12 + 6}px` }}
-        className={`group flex items-center justify-between py-1.5 px-2 rounded-md cursor-pointer transition-colors duration-150 ${
-          isSelected
-            ? "bg-accent text-accent-foreground border-l-2 border-primary"
-            : "hover:bg-muted text-muted-foreground hover:text-foreground"
-        }`}
-        onClick={handleGroupClick}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          {hasAnyChildren || (isExpanded && loadingTestcases) ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setExpandedGroups({
-                  ...expandedGroups,
-                  [node.id]: !isExpanded
-                })
-              }}
-              className="p-0.5 hover:bg-accent rounded"
-            >
-              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </button>
-          ) : (
-            <div className="w-5" />
-          )}
-          <Folder size={16} className={isSelected ? "text-primary" : "text-muted-foreground"} />
-          <span className="text-sm font-medium truncate">{node.name}</span>
-        </div>
+    <tr
+      onClick={handleRowClick}
+      className={`group cursor-pointer hover:bg-zinc-900/20 transition-colors border-b border-zinc-850/30 text-sm ${
+        isSelected
+          ? "bg-zinc-900/60 text-zinc-100 font-medium"
+          : "text-zinc-400 hover:text-zinc-200"
+      }`}
+    >
+      {/* 欄位 1: 名稱 */}
+      <td className="px-6 py-4" style={{ paddingLeft: `${row.depth * 20 + 16}px` }}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* 折疊按鈕 (僅群組且有子項目時顯示，其餘留白) */}
+            {row.type === "group" ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleExpand(row.id)
+                }}
+                className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
+              >
+                {row.isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </button>
+            ) : (
+              <div className="w-5" />
+            )}
+            
+            {/* 類型圖示 */}
+            {row.type === "group" ? (
+              <Folder size={15} className={isSelected ? "text-primary" : "text-zinc-500"} />
+            ) : (
+              <FileText size={15} className={isSelected ? "text-primary" : "text-zinc-600"} />
+            )}
 
-        {/* 群組操作小按鈕 */}
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity duration-150">
-          <button
-            title="新增子群組"
-            onClick={(e) => {
-              e.stopPropagation()
-              onAddSubgroup(node.id)
-            }}
-            className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
-          >
-            <Plus size={12} />
-          </button>
-          <button
-            title="刪除群組"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDeleteGroup(node.id)
-            }}
-            className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      </div>
+            {/* 名稱文字 */}
+            <span className="truncate max-w-[280px]" title={row.name}>
+              {row.name}
+            </span>
+          </div>
 
-      {/* 渲染子群組與測試案例 */}
-      {isExpanded && (
-        <div className="mt-0.5">
-          {/* 1. 子群組 */}
-          {hasChildren && node.children!.map((child) => (
-            <GroupTreeNode
-              key={child.id}
-              node={child}
-              depth={depth + 1}
-              selectedGroupId={selectedGroupId}
-              setSelectedGroupId={setSelectedGroupId}
-              expandedGroups={expandedGroups}
-              setExpandedGroups={setExpandedGroups}
-              onAddSubgroup={onAddSubgroup}
-              onDeleteGroup={onDeleteGroup}
-              projectId={projectId}
-              refreshTrigger={refreshTrigger}
-            />
-          ))}
-
-          {/* 2. 測試案例載入中 */}
-          {loadingTestcases && !hasLoaded && (
-            <div
-              style={{ paddingLeft: `${(depth + 1) * 12 + 10}px` }}
-              className="flex items-center gap-1.5 py-1 px-2 text-xs text-muted-foreground italic"
-            >
-              <Loader2 size={12} className="animate-spin" />
-              <span>載入測試案例中...</span>
+          {/* 操作按鈕 (僅群組有，且在 hover 時才顯示) */}
+          {row.type === "group" && (
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
+              <button
+                title="新增子群組"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddSubgroup(row.id)
+                }}
+                className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+              <button
+                title="刪除群組"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDeleteGroup(row.id)
+                }}
+                className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-colors"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           )}
-
-          {/* 3. 測試案例列表 */}
-          {hasLoaded && testcases.map((tc) => (
-            <div
-              key={tc.id}
-              style={{ paddingLeft: `${(depth + 1) * 12 + 10}px` }}
-              className="group/tc flex items-center justify-between py-1.5 px-2 rounded-md cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground border border-transparent transition-all duration-150"
-              onClick={() => navigate(`/project/${projectId}/testCase/${tc.id}`)}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText size={14} className="text-zinc-500 group-hover/tc:text-primary transition-colors" />
-                <span className="text-sm truncate">{tc.name}</span>
-              </div>
-            </div>
-          ))}
         </div>
-      )}
-    </div>
+      </td>
+
+      {/* 欄位 2: 類型 */}
+      <td className="px-6 py-4 text-xs text-zinc-500 uppercase tracking-wider">
+        {row.type === "group" ? "群組" : "劇本"}
+      </td>
+
+      {/* 欄位 3: 項目/步驟數 */}
+      <td className="px-6 py-4 font-mono text-center text-zinc-500">
+        {row.itemCount}
+      </td>
+
+      {/* 欄位 4: 最後執行狀態 */}
+      <td className="px-6 py-4 text-right">
+        {row.type === "testcase" ? renderStatusBadge(row.lastStatus) : <span className="text-zinc-600">-</span>}
+      </td>
+    </tr>
   )
 }
