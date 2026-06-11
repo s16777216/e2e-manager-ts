@@ -1,0 +1,24 @@
+## MODIFIED Requirements
+
+### Requirement: Project and Group Tree View Sidebar
+系統 MUST 在側邊欄提供極簡化的專案與首頁導航。專案詳細頁面中 MUST 提供群組與測試案例樹狀結構表格（Tree Table）導航，以列與欄的形式展示資訊。點選特定群組時，系統 SHALL 僅展開或收合該節點。專案詳細頁面 MUST 採用巢狀路由（Nested Router）結構，在右側提供 `<Outlet />` 容器。當網址轉導至 `/project/:projectId/testCase/:testCaseId` 或 `/project/:projectId/run/:runId` 時，系統 MUST 保持左側劇本樹狀表格導航的展開狀態與選取狀態，並在右側 Outlet 容器中渲染對應的測試案例詳情或即時監控 Console，不得重新載入或解除安裝（unmount）左側面板。「建立群組」按鈕 MUST 放置於左側劇本樹狀表格導航面板的 Header 右側。「建立測試案例」按鈕 MUST 在未選定測試案例時，展示於右側的預設引導頁中。
+
+#### Scenario: Render group tree for selected project
+- **WHEN** 使用者切換至特定專案或其子路由，前端轉導或渲染 `/project/:projectId` 並於左側載入群組樹，且在展開特定群組時動態向 API 發送 `/api/groups/:groupId/testcases` 加載測試案例
+- **THEN** 前端以樹狀表格（Tree Table）形式渲染，展示折疊箭頭、項目類型、子項目/步驟數與最後執行狀態，並在切換子路由時完整維持其展開與選取狀態，無任何重新載入的閃爍
+
+## ADDED Requirements
+
+### Requirement: Project List Table View
+系統 MUST 在首頁的專案入口提供表格（Table）形式的專案列表，橫向展示多維度屬性對照。表格欄位 MUST 包含專案名稱（附帶連結與圖示）、描述、群組數量、劇本數量、最後執行時間與操作動作。表格 MUST 支援搜尋與排序。
+
+#### Scenario: Display and search projects table
+- **WHEN** 使用者進入專案首頁，且輸入搜尋關鍵字或點擊欄位標頭進行排序時
+- **THEN** 前端以表格形式載入所有專案資訊，並即時依據關鍵字進行過濾或依據所選欄位變更排列順序，點擊進入可正確導向專案詳細頁面
+
+### Requirement: TestCase Run History Table View
+系統 MUST 在測試案例的歷史紀錄中，以表格（Table）形式展示過往所有的執行任務。表格欄位 MUST 包含執行編號（帶跳轉連結）、狀態（Badge）、啟動時間、執行耗時與最終審查報告。
+
+#### Scenario: View and navigate run history table
+- **WHEN** 使用者在劇本詳情頁點選進入歷史紀錄分頁，且該劇本存在歷史執行紀錄時
+- **THEN** 前端以表格形式依時間降冪排列展示所有執行紀錄，點擊特定編號的 Row 會正確 navigate 導航至 `/project/:projectId/run/:runId`

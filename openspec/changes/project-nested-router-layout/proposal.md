@@ -9,6 +9,8 @@
 
 - **Nest Router Layout 改造**：將 `/project/:projectId/testCase/:testCaseId` 和 `/project/:projectId/run/:runId` 調整為 `/project/:projectId` 的子路由（Nested Children）。
 - **Project Detail View 改造**：修改 `ProjectDetailView.tsx`，移除右側佔用 2/3 寬度的預設主控台面板，改為渲染 `<Outlet />`。左側的樹狀導航與專案基本資訊在此父路由中常駐，避免路由切換時 unmount。
+- **`shadcn/ui` Sidebar 側邊欄重構**：引進 `shadcn/ui` 的 `Sidebar` 元件（含 `SidebarProvider`、`Sidebar`、`SidebarContent`、`SidebarRail`），做為左側劇本樹狀導航的載體。支援以 `SidebarTrigger` 按鈕或 `Ctrl+B` 快捷鍵一鍵完全折疊/展開側邊欄，折疊時右側主內容區平滑延展至 100% 寬度，並支援以 `SidebarRail` 進行滑鼠拖曳調整寬度。
+- **動態 Breadcrumb 導航**：在常駐的 Topbar 中引進 `shadcn/ui` 的 Breadcrumb 元件，依據目前的子路由狀態（專案、劇本、或執行記錄）動態顯示層級麵包屑路徑，並提供點擊返回的連結。
 - **預設引導頁**：當訪問 `/project/:projectId`（未選取任何測試案例）時，右側 `<Outlet />` 預設渲染一個提示頁面（`SelectGroupPrompt.tsx`），引導使用者選取劇本。
 - **按鈕位置重置**：
   - 「建立群組」：從頂部 Topbar 移入左側「劇本樹狀導航」面板的 Header 右側。
@@ -25,6 +27,6 @@
 
 ## Impact
 
-- **前端路由**：`frontend/src/routes.tsx`
+- **前端路由與元件**：`frontend/src/routes.tsx`、新增 `frontend/src/components/ui/breadcrumb.tsx`、新增 `frontend/src/components/ui/sidebar.tsx` 及其依賴元件（如 `sheet.tsx`, `tooltip.tsx` 等）
 - **前端視圖與版面**：`frontend/src/views/ProjectDetailView.tsx`、`frontend/src/views/TestCaseDetailView.tsx`、`frontend/src/views/SSEConsoleView.tsx`
 - **前端導航與元件**：`frontend/src/components/custom/GroupTreeNode.tsx`
