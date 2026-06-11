@@ -1,6 +1,6 @@
-import type { Project, TestGroup, Testcase, TestRun } from "../types/api"
+import type { Project, TestGroup, Testcase, TestRun } from "../types/api";
 
-const BASE_URL = "/api"
+const BASE_URL = "/api";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${url}`, {
@@ -9,23 +9,23 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       "Content-Type": "application/json",
       ...(options?.headers || {}),
     },
-  })
+  });
 
   if (!res.ok) {
-    let errMsg = "API 請求失敗"
+    let errMsg = "API 請求失敗";
     try {
-      const errJson = await res.json()
-      errMsg = errJson.error || errMsg
+      const errJson = await res.json();
+      errMsg = errJson.error || errMsg;
     } catch {
       // Ignored
     }
-    throw new Error(errMsg)
+    throw new Error(errMsg);
   }
 
   // 某些 DELETE 路由可能返回空或 204
-  if (res.status === 204) return {} as T
+  if (res.status === 204) return {} as T;
 
-  return res.json() as Promise<T>
+  return res.json() as Promise<T>;
 }
 
 export const api = {
@@ -60,7 +60,7 @@ export const api = {
     request<Testcase[]>(`/groups/${groupId}/testcases`),
   createTestcase: (
     groupId: string,
-    data: { name: string; steps: string[]; expected: string }
+    data: { name: string; steps: string[]; expected: string },
   ) =>
     request<Testcase>(`/groups/${groupId}/testcases`, {
       method: "POST",
@@ -68,7 +68,7 @@ export const api = {
     }),
   updateTestcase: (
     testcaseId: string,
-    data: { name?: string; steps?: string[]; expected?: string }
+    data: { name?: string; steps?: string[]; expected?: string },
   ) =>
     request<Testcase>(`/testcases/${testcaseId}`, {
       method: "PATCH",
@@ -83,7 +83,7 @@ export const api = {
   triggerRun: (testcaseId: string) =>
     request<{ message: string; runId: string; status: string }>(
       `/testcases/${testcaseId}/run`,
-      { method: "POST" }
+      { method: "POST" },
     ),
   getRunStatus: (runId: string) => request<TestRun>(`/runs/${runId}`),
   cancelRun: (runId: string) =>
@@ -91,4 +91,4 @@ export const api = {
 
   // SSE Stream URL helper
   getStreamUrl: (runId: string) => `${BASE_URL}/runs/${runId}/stream`,
-}
+};
