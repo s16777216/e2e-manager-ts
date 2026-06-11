@@ -4,11 +4,11 @@
 TBD - created by archiving change setup-monorepo-and-frontend. Update Purpose after archive.
 ## Requirements
 ### Requirement: Project and Group Tree View Sidebar
-系統 MUST 在側邊欄提供極簡化的專案與首頁導航。專案詳細頁面中 MUST 提供群組與測試案例樹狀結構導航。前端的專案列表、操作按鈕及群組/測試案例管理彈窗 MUST 採用統一的 shadcn/ui 元件。點選樹狀圖的群組節點時，系統 SHALL 僅展開或收合該節點；點選測試案例節點時，系統 SHALL 將網址轉導至 `/project/:projectId/testCase/:testCaseId`。
+系統 MUST 在側邊欄提供極簡化的專案與首頁導航。專案詳細頁面中 MUST 提供群組與測試案例樹狀結構導航，且點選特定群組時僅展開或收合該節點。目錄導航面板 MUST 作為可摺疊的側邊欄（Sidebar）呈現，支援使用按鈕或快捷鍵（如 Ctrl+B）進行一鍵折疊與展開（折疊後右側內容區平滑延展至 100% 寬度），且面板邊軌 MUST 支援滑鼠拖曳調整寬度。專案詳細頁面 MUST 採用巢狀路由（Nested Router）結構，在右側提供 `<Outlet />` 容器。當網址轉導至 `/project/:projectId/testCase/:testCaseId` 或 `/project/:projectId/run/:runId` 時，系統 MUST 保持左側劇本樹狀導航的展開狀態與選取狀態，並在右側 Outlet 容器中分別渲染對應的測試案例詳情或即時監控 Console，不得重新載入或解除安裝（unmount）左側面板。專案詳細頁面頂端 MUST 提供動態麵包屑（Breadcrumb）導航，依據當前的子路由層級與參數，動態拼接並展示「專案 / 專案名稱 / 劇本名稱 / 執行紀錄」之導航層級，並支援點擊返回。 「建立群組」按鈕 MUST 放置於左側劇本樹狀導航面板的 Header 右側。「建立測試案例」按鈕 MUST 在未選定測試案例時，展示於右側的預設引導頁中。
 
 #### Scenario: Render group tree for selected project
-- **WHEN** 使用者在專案列表選擇或切換至特定專案，前端轉導至 `/project/:projectId` 載入群組樹，且在使用者點擊展開特定群組時，前端向 API 發送 `/api/groups/:groupId/testcases` 請求以加載該群組之測試案例
-- **THEN** 前端將該群組的測試案例動態渲染於其子項目，且所有彈窗與表單元件均符合 shadcn 的統一設計風格，且已加載的測試案例會快取在前端以避免重複請求
+- **WHEN** 使用者切換至特定專案或其子路由，前端轉導或渲染 `/project/:projectId` 並於左側載入群組樹，且在展開特定群組時動態向 API 發送 `/api/groups/:groupId/testcases` 加載測試案例
+- **THEN** 前端將測試案例動態渲染於子項目，並在切換子路由時完整維持左側樹狀導航的展開與選取狀態，支援側邊欄拖曳拉伸與一鍵收合，且頂端麵包屑路徑能即時動態更新且無閃爍
 
 ### Requirement: Testcase Run Details and Real-time SSE Log Stream
 系統 MUST 在觸發測試執行後，以實時日誌流（Log Stream）與步驟截圖展示執行過程。前端 MUST 將畫面轉導至 `/project/:projectId/run/:runId` 路由，並透過 SSE 訂閱即時事件，使用 ScrollArea 包裹時間軸與日誌細節等滾動區域，並在任務結束後渲染最終視覺斷言 PASS/FAIL 的判定報告。該運行頁面之返回按鈕 MUST 導向該任務所屬的測試案例詳情頁 `/project/:projectId/testCase/:testCaseId`。所有通知與錯誤回饋 MUST 採用 Sonner (Toaster) 進行 Toast 訊息提示。

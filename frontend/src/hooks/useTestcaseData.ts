@@ -73,10 +73,18 @@ export function useTestcaseData(groupId: string | undefined) {
   }
 
   useEffect(() => {
-    if (groupId) {
-      loadTestcases(groupId)
-    } else {
-      setTestcases([])
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) {
+        if (groupId) {
+          loadTestcases(groupId)
+        } else {
+          setTestcases([])
+        }
+      }
+    })
+    return () => {
+      active = false
     }
   }, [groupId])
 
