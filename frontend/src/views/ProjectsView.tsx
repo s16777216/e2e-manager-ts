@@ -204,7 +204,7 @@ export default function ProjectsView() {
                       className="px-6 py-4 cursor-pointer hover:bg-zinc-900/40 hover:text-zinc-200 transition-colors"
                     >
                       <div className="flex items-center gap-1.5">
-                        劇本數 <ArrowUpDown size={12} className="text-zinc-500" />
+                        測試案例數 <ArrowUpDown size={12} className="text-zinc-500" />
                       </div>
                     </th>
                     <th
@@ -255,7 +255,7 @@ export default function ProjectsView() {
                         {proj.groupCount}
                       </td>
 
-                      {/* 劇本數 */}
+                      {/* 測試案例數 */}
                       <td className="px-6 py-4.5 font-mono text-zinc-400">
                         {proj.testcaseCount}
                       </td>

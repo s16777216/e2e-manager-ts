@@ -15,7 +15,7 @@ export function useProjectData() {
       setProjects(data)
       setIsOnline(true)
       return data
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsOnline(false)
       console.error(err)
       toast.error("載入專案失敗")
@@ -32,14 +32,23 @@ export function useProjectData() {
       setProjects((prev) => [...prev, newProj])
       toast.success("專案建立成功！")
       return newProj
-    } catch (err) {
-      toast.error("建立專案失敗：" + err)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("建立專案失敗：" + msg)
       return null
     }
   }
 
   useEffect(() => {
-    loadProjects()
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) {
+        loadProjects()
+      }
+    })
+    return () => {
+      active = false
+    }
   }, [])
 
   return {

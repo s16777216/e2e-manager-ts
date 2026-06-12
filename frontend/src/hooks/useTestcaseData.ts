@@ -14,7 +14,7 @@ export function useTestcaseData(groupId: string | undefined) {
       setTestcases(data)
     } catch (err) {
       console.error(err)
-      toast.error("載入測試劇本失敗")
+      toast.error("載入測試案例失敗")
     } finally {
       setIsLoading(false)
     }
@@ -40,19 +40,20 @@ export function useTestcaseData(groupId: string | undefined) {
           steps: steps.map(s => s.trim()),
           expected: expected.trim()
         })
-        toast.success("測試劇本修改成功！")
+        toast.success("測試案例修改成功！")
       } else {
         result = await api.createTestcase(groupId, {
           name: name.trim(),
           steps: steps.map(s => s.trim()),
           expected: expected.trim()
         })
-        toast.success("測試劇本建立成功！")
+        toast.success("測試案例建立成功！")
       }
       await loadTestcases(groupId)
       return result
-    } catch (err: any) {
-      toast.error("儲存測試案例失敗：" + err.message)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("儲存測試案例失敗：" + msg)
       return null
     }
   }
@@ -64,7 +65,7 @@ export function useTestcaseData(groupId: string | undefined) {
       if (groupId) {
         await loadTestcases(groupId)
       }
-      toast.success("測試劇本刪除成功！")
+      toast.success("測試案例刪除成功！")
       return true
     } catch (err) {
       toast.error("刪除測試案例失敗：" + err)

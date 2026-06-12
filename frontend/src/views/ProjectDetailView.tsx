@@ -105,7 +105,7 @@ export default function ProjectDetailView() {
     }
   }
 
-  // 當 refreshTrigger 改變時重新獲取當前已展開群組的測試案例 (以即時更新最新建立的劇本)
+  // 當 refreshTrigger 改變時重新獲取當前已展開群組的測試案例 (以即時更新最新建立的測試案例)
   useEffect(() => {
     if (!projectId) return
 
@@ -270,7 +270,7 @@ export default function ProjectDetailView() {
         steps: tcSteps.map((s) => s.trim()),
         expected: tcExpected.trim()
       })
-      toast.success("測試劇本建立成功！")
+      toast.success("測試案例建立成功！")
       
       // 重置 Form 狀態
       setTcName("")
@@ -299,7 +299,7 @@ export default function ProjectDetailView() {
             {activeProject ? activeProject.name : "載入專案中..."}
           </h2>
           <p className="text-zinc-400 text-sm mt-1.5 leading-relaxed">
-            {activeProject?.description || "選擇下方劇本開始視覺測試，或建立新的測試群組與案例。"}
+            {activeProject?.description || "選擇下方測試案例開始視覺測試，或建立新的測試群組與案例。"}
           </p>
         </div>
 
@@ -326,7 +326,7 @@ export default function ProjectDetailView() {
         </div>
       </div>
 
-      {/* 劇本樹狀表格目錄 */}
+      {/* 測試案例樹狀表格目錄 */}
       <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col">
 
         <div className="border border-zinc-850 bg-zinc-900/30 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
@@ -387,18 +387,18 @@ export default function ProjectDetailView() {
       <Dialog open={showNewTestCaseModal} onOpenChange={setShowNewTestCaseModal}>
         <DialogContent className="max-w-2xl bg-zinc-900 border-zinc-800 text-zinc-100">
           <DialogHeader>
-            <DialogTitle>建立全新測試劇本</DialogTitle>
+            <DialogTitle>建立全新測試案例</DialogTitle>
             <DialogDescription className="text-zinc-400 text-xs">
-              在選定的群組下建立劇本，並提供以自然語言描述的視覺測試步驟。
+              在選定的群組下建立測試案例，並提供以自然語言描述的視覺測試步驟。
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 my-2">
             
-            {/* 劇本名稱 */}
+            {/* 測試案例名稱 */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                劇本名稱 <span className="text-red-500">*</span>
+                測試案例名稱 <span className="text-red-500">*</span>
               </label>
               <Input
                 type="text"
@@ -499,7 +499,7 @@ export default function ProjectDetailView() {
               {isSavingTestCase ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
-                "儲存劇本"
+                "儲存測試案例"
               )}
             </Button>
           </DialogFooter>

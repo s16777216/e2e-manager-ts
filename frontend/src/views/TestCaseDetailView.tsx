@@ -23,7 +23,7 @@ export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams()
   const navigate = useNavigate()
 
-  // 測試劇本狀態
+  // 測試案例狀態
   const [testcase, setTestcase] = useState<Testcase | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -71,7 +71,7 @@ export default function TestCaseDetailView() {
     setIsLoading(true)
   }
 
-  // 載入劇本詳情與執行紀錄
+  // 載入測試案例詳情與執行紀錄
   const loadTestCaseData = useCallback(async () => {
     if (!testCaseId) return
     try {
@@ -83,7 +83,7 @@ export default function TestCaseDetailView() {
       setTcExpected(data.expected)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
-      toast.error("載入測試劇本失敗：" + msg)
+      toast.error("載入測試案例失敗：" + msg)
     } finally {
       setIsLoading(false)
     }
@@ -134,7 +134,7 @@ export default function TestCaseDetailView() {
         steps: tcSteps.map((s) => s.trim()),
         expected: tcExpected.trim()
       })
-      toast.success("測試劇本修改成功！")
+      toast.success("測試案例修改成功！")
       setIsEditing(false)
       await loadTestCaseData()
     } catch (err: unknown) {
@@ -198,7 +198,7 @@ export default function TestCaseDetailView() {
       <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-400">
         <div className="flex flex-col items-center gap-2">
           <Loader2 size={24} className="animate-spin text-zinc-500" />
-          <span className="text-xs italic">載入劇本詳情中...</span>
+          <span className="text-xs italic">載入測試案例詳情中...</span>
         </div>
       </div>
     )
@@ -207,7 +207,7 @@ export default function TestCaseDetailView() {
   if (!testcase) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-zinc-950 text-zinc-400 gap-4">
-        <p className="text-sm">找不到指定的測試劇本資料</p>
+        <p className="text-sm">找不到指定的測試案例資料</p>
         <Button onClick={() => navigate(`/project/${projectId}`)}>返回專案</Button>
       </div>
     )
@@ -234,7 +234,7 @@ export default function TestCaseDetailView() {
           </Button>
           <div>
             <h2 className="text-xl font-bold tracking-tight text-zinc-100">
-              {isEditing ? "編輯劇本" : testcase.name}
+              {isEditing ? "編輯測試案例" : testcase.name}
             </h2>
             <p className="text-xs font-mono text-zinc-500 mt-1">ID: {testcase.id}</p>
           </div>
@@ -249,7 +249,7 @@ export default function TestCaseDetailView() {
                 onClick={() => setIsEditing(true)}
                 className="border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100 text-zinc-300 gap-1.5"
               >
-                <Edit size={14} /> 編輯劇本
+                <Edit size={14} /> 編輯測試案例
               </Button>
               <Button
                 onClick={handleRunTestCase}
@@ -312,13 +312,13 @@ export default function TestCaseDetailView() {
                   {/* 編輯名稱 */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      劇本名稱 <span className="text-red-500">*</span>
+                      測試案例名稱 <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="text"
                       value={tcName}
                       onChange={(e) => setTcName(e.target.value)}
-                      placeholder="修改劇本名稱"
+                      placeholder="修改測試案例名稱"
                       className="bg-zinc-950 border-zinc-800 text-zinc-100"
                     />
                   </div>

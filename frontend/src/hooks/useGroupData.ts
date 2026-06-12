@@ -50,21 +50,29 @@ export function useGroupData(projectId: string | undefined) {
   }
 
   useEffect(() => {
-    if (projectId) {
-      loadGroups(projectId)
-    } else {
-      setGroups([])
+    let active = true
+    Promise.resolve().then(() => {
+      if (active) {
+        if (projectId) {
+          loadGroups(projectId)
+        } else {
+          setGroups([])
+        }
+      }
+    })
+    return () => {
+      active = false
     }
   }, [projectId])
 
   // 遞迴建構樹狀結構
-  const buildGroupTree = (groupList: TestGroup[]): (TestGroup & { children: any[] })[] => {
-    const map = new Map<string, TestGroup & { children: any[] }>()
+  const buildGroupTree = (groupList: TestGroup[]): (TestGroup & { children: TestGroup[] })[] => {
+    const map = new Map<string, TestGroup & { children: TestGroup[] }>()
     groupList.forEach(g => {
       map.set(g.id, { ...g, children: [] })
     })
 
-    const roots: (TestGroup & { children: any[] })[] = []
+    const roots: (TestGroup & { children: TestGroup[] })[] = []
     map.forEach(g => {
       if (g.parentId && map.has(g.parentId)) {
         map.get(g.parentId)!.children.push(g)

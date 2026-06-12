@@ -97,7 +97,7 @@ export function GroupTreeNode({
         <td className="px-6 py-4 text-sm italic" style={{ paddingLeft: `${row.depth * 20 + 16}px` }}>
           <div className="flex items-center gap-1.5">
             <Loader2 size={12} className="animate-spin text-zinc-500" />
-            <span>載入劇本中...</span>
+            <span>載入測試案例中...</span>
           </div>
         </td>
         <td className="px-6 py-4 text-sm">-</td>
@@ -179,7 +179,7 @@ export function GroupTreeNode({
 
       {/* 欄位 2: 類型 */}
       <td className="px-6 py-4 text-xs text-zinc-500 uppercase tracking-wider">
-        {row.type === "group" ? "群組" : "劇本"}
+        {row.type === "group" ? "群組" : "測試案例"}
       </td>
 
       {/* 欄位 3: 項目/步驟數 */}

@@ -45,7 +45,7 @@ export default function SSEConsoleView() {
         }
       })
       .catch((err) => {
-        console.error("載入監控劇本詳情失敗:", err);
+        console.error("載入監控測試案例詳情失敗:", err);
       });
     return () => {
       active = false;

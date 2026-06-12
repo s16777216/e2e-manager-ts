@@ -25,7 +25,7 @@ export default function WelcomeView() {
             <h3 className="text-xl font-bold tracking-tight text-zinc-100">歡迎使用 Antigravity E2E</h3>
           </div>
           <p className="text-xs text-zinc-400 mt-3 leading-relaxed max-w-sm mx-auto">
-            這是您的視覺劇本自動化測試主控台。在全新的極簡導航架構下，您可以點擊下方按鈕前往「專案列表」來管理您的測試案例。
+            這是您的視覺化測試案例自動化主控台。在全新的極簡導航架構下，您可以點擊下方按鈕前往「專案列表」來管理您的測試案例。
           </p>
         </div>
 

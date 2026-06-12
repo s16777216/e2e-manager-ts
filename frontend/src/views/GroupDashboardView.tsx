@@ -17,7 +17,7 @@ export default function GroupDashboardView() {
   // 取得選定群組名稱
   const activeGroup = groups.find(g => g.id === groupId);
 
-  // 劇本資料載入
+  // 測試案例資料載入
   const { testcases, handleSaveTestcase, handleDeleteTestcase } = useTestcaseData(groupId);
 
   // 測試啟動邏輯 (SSE 觸發但轉導由 Router 完成)
@@ -61,7 +61,7 @@ export default function GroupDashboardView() {
     setTcSteps(newSteps);
   };
 
-  // 儲存劇本
+  // 儲存測試案例
   const handleSave = async () => {
     const res = await handleSaveTestcase(editingTcId, tcName, tcSteps, tcExpected);
     if (res) {
@@ -71,7 +71,7 @@ export default function GroupDashboardView() {
     }
   };
 
-  // 開始編輯劇本
+  // 開始編輯測試案例
   const startEdit = (tc: Testcase) => {
     setTcName(tc.name);
     setTcSteps(tc.steps);
@@ -100,7 +100,7 @@ export default function GroupDashboardView() {
             {activeGroup ? `群組：${activeGroup.name}` : "工作主控台"}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {activeGroup ? "管理該群組底下的所有 E2E 測試劇本" : "載入中..."}
+            {activeGroup ? "管理該群組底下的所有 E2E 測試案例" : "載入中..."}
           </p>
         </div>
       </header>
@@ -113,7 +113,7 @@ export default function GroupDashboardView() {
             {/* 頂部操作欄 */}
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                測試劇本清單
+                測試案例清單
               </h3>
               <Button
                 onClick={() => {
@@ -135,14 +135,14 @@ export default function GroupDashboardView() {
               <div className="bg-card border rounded-xl p-5 flex flex-col gap-4">
                 <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
                   <FileText size={14} className="text-primary" />
-                  {isEditingTestcase ? "編輯測試劇本" : "建立全新測試劇本"}
+                  {isEditingTestcase ? "編輯測試案例" : "建立全新測試案例"}
                 </h4>
 
                 <div className="flex flex-col gap-3">
-                  {/* 劇本名稱 */}
+                  {/* 測試案例名稱 */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                      劇本名稱
+                      測試案例名稱
                     </label>
                     <Input
                       type="text"
@@ -219,7 +219,7 @@ export default function GroupDashboardView() {
                     取消
                   </Button>
                   <Button onClick={handleSave}>
-                    儲存劇本
+                    儲存測試案例
                   </Button>
                 </div>
               </div>
@@ -248,7 +248,7 @@ export default function GroupDashboardView() {
                           size="icon"
                           onClick={() => startEdit(tc)}
                           className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          title="編輯劇本"
+                          title="編輯測試案例"
                         >
                           <Edit2 size={13} />
                         </Button>
@@ -257,7 +257,7 @@ export default function GroupDashboardView() {
                           size="icon"
                           onClick={() => handleDeleteTestcase(tc.id)}
                           className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          title="刪除劇本"
+                          title="刪除測試案例"
                         >
                           <Trash2 size={13} />
                         </Button>

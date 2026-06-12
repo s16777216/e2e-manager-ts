@@ -24,8 +24,9 @@ export function useSSEStream(runId: string | undefined) {
       })
       toast.success("測試已啟動，正在載入執行環境...")
       return res.runId
-    } catch (err: any) {
-      toast.error("啟動測試失敗：" + err.message)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("啟動測試失敗：" + msg)
       return null
     }
   }
@@ -107,9 +108,13 @@ export function useSSEStream(runId: string | undefined) {
     let active = true
 
     const initRun = async (rId: string) => {
-      setRunLogs([])
-      setRunStatus(null)
-      setSelectedLogId(null)
+      Promise.resolve().then(() => {
+        if (active) {
+          setRunLogs([])
+          setRunStatus(null)
+          setSelectedLogId(null)
+        }
+      })
 
       try {
         const runData = await api.getRunStatus(rId)
@@ -147,9 +152,13 @@ export function useSSEStream(runId: string | undefined) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
       }
-      setRunLogs([])
-      setRunStatus(null)
-      setSelectedLogId(null)
+      Promise.resolve().then(() => {
+        if (active) {
+          setRunLogs([])
+          setRunStatus(null)
+          setSelectedLogId(null)
+        }
+      })
     }
 
     return () => {
