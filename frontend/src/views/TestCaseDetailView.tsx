@@ -3,7 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { api } from "../lib/api"
 import type { Testcase } from "../types/api"
-import { ChevronLeft, Play, Edit, Trash2, Plus, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
+import { Play, Edit, Trash2, Plus, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -223,21 +223,11 @@ export default function TestCaseDetailView() {
       
       {/* 頂部控制列 - 頁面內部控制工具欄 */}
       <div className="px-8 py-6 flex items-center justify-between flex-shrink-0 animate-fadeIn gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate(`/project/${projectId}`)}
-            className="border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-100"
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-zinc-100">
-              {isEditing ? "編輯測試案例" : testcase.name}
-            </h2>
-            <p className="text-xs font-mono text-zinc-500 mt-1">ID: {testcase.id}</p>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-zinc-100">
+            {isEditing ? "編輯測試案例" : testcase.name}
+          </h2>
+          <p className="text-xs font-mono text-zinc-500 mt-1">ID: {testcase.id}</p>
         </div>
 
         {/* 右側操作按鈕 */}
@@ -326,7 +316,7 @@ export default function TestCaseDetailView() {
                   {/* 編輯自然語言步驟 */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      測試步驟 (自然語言描述) <span className="text-red-500">*</span>
+                      測試步驟 <span className="text-red-500">*</span>
                     </label>
                     <div className="flex flex-col gap-2.5">
                       {tcSteps.map((step, idx) => (

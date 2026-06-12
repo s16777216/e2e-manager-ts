@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"
-import { ChevronLeft, Loader2, CheckCircle2, XCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useParams, useOutletContext } from "react-router-dom"
+import { Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSSEStream } from "../hooks/useSSEStream"
 import { useProjectData } from "../hooks/useProjectData"
@@ -22,7 +21,6 @@ interface OutletContextType {
 
 export default function SSEConsoleView() {
   const { projectId, runId } = useParams();
-  const navigate = useNavigate();
 
   // SSE 狀態連線
   const {
@@ -83,66 +81,10 @@ export default function SSEConsoleView() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Console 頂部控制列 - 頁面內部控制工具欄 */}
-      <div className="px-6 py-5 flex items-center justify-between flex-shrink-0 gap-4 animate-fadeIn">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              if (projectId && runStatus?.testcaseId) {
-                navigate(`/project/${projectId}/testCase/${runStatus.testcaseId}`)
-              } else {
-                navigate(-1)
-              }
-            }}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft size={18} />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-foreground">
-                即時監控 Console (SSE)
-              </h2>
-              {runId && (
-                <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                  ID: {runId.substring(0, 8)}...
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">即時追蹤 AI 代理人的 E2E 視覺測試過程</p>
-          </div>
-        </div>
-
-        {/* 任務狀態大標誌 */}
-        <div className="flex items-center gap-2.5">
-          {runStatus?.status === "pending" && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full text-xs font-medium">
-              <Loader2 size={12} className="animate-spin" /> 排隊中 (Pending)
-            </div>
-          )}
-          {runStatus?.status === "running" && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary rounded-full text-xs font-medium">
-              <Loader2 size={12} className="animate-spin" /> 執行中 (Running)
-            </div>
-          )}
-          {runStatus?.status === "passed" && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-xs font-medium">
-              <CheckCircle2 size={12} /> 成功 (Passed)
-            </div>
-          )}
-          {(runStatus?.status === "failed" || runStatus?.status === "error") && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-destructive/10 border border-destructive/20 text-destructive rounded-full text-xs font-medium">
-              <XCircle size={12} /> 失敗 ({runStatus.status.toUpperCase()})
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* 視覺斷言報告 (當有最終結果時，顯示在上方) */}
       {runStatus?.finalResult && (
-        <div className="px-6 pb-4 flex-shrink-0 animate-fadeIn max-w-4xl mx-auto w-full">
+        <div className="px-6 py-4 flex-shrink-0 animate-fadeIn max-w-4xl mx-auto w-full">
           <div className={cn(
             "border rounded-xl p-5 flex flex-col gap-3.5 shadow-md",
             runStatus.finalResult === "PASS"
