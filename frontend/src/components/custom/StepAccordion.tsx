@@ -1,0 +1,209 @@
+import React, { useState } from "react";
+import { ChevronDown, CheckCircle2, XCircle, AlertCircle, Loader2, Image as ImageIcon, MessageSquare } from "lucide-react";
+import type { GroupedStep } from "../../lib/logUtils";
+import { cn } from "../../lib/utils";
+
+interface StepAccordionProps {
+  steps: GroupedStep[];
+  defaultOpenAll?: boolean;
+}
+
+export function StepAccordion({ steps, defaultOpenAll = false }: StepAccordionProps) {
+  return (
+    <div className="space-y-4">
+      {steps.map((step) => (
+        <StepCard key={step.stepIdx} step={step} defaultOpen={defaultOpenAll} />
+      ))}
+    </div>
+  );
+}
+
+function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boolean }) {
+  // 判斷該步驟的最終狀態
+  const hasError = step.logs.some(log => 
+    log.result?.toLowerCase().includes("fail") || 
+    log.result?.toLowerCase().includes("error")
+  );
+  
+  const isPending = step.logs.length === 0;
+  
+  const isRunning = step.logs.some(log => 
+    log.result?.toLowerCase().includes("pending") || 
+    log.result?.toLowerCase().includes("running")
+  );
+
+  const [isOpen, setIsOpen] = useState(defaultOpen || isRunning || hasError);
+
+  // 當正在執行或出錯時，自動展開卡片
+  React.useEffect(() => {
+    if (isRunning || hasError) {
+      Promise.resolve().then(() => {
+        setIsOpen(true);
+      });
+    }
+  }, [isRunning, hasError]);
+
+  return (
+    <div 
+      className={cn(
+        "bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-md rounded-xl overflow-hidden transition-all duration-300",
+        isOpen ? "shadow-lg shadow-black/35 border-zinc-700/40" : "hover:border-zinc-800/80"
+      )}
+    >
+      {/* Header */}
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Status Icon */}
+          <div className="flex-shrink-0">
+            {hasError ? (
+              <XCircle className="w-5 h-5 text-rose-500" />
+            ) : isRunning ? (
+              <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+            ) : isPending ? (
+              <AlertCircle className="w-5 h-5 text-zinc-500" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700/50">
+              步驟 {step.stepIdx}
+            </span>
+            <span className="text-zinc-200 font-medium text-sm truncate">
+              {step.stepDescription || "無步驟描述"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {step.screenshotUrl && (
+            <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-700/50">
+              <ImageIcon className="w-3 h-3 text-indigo-400" />
+              截圖
+            </span>
+          )}
+          <ChevronDown 
+            className={cn(
+              "w-4 h-4 text-zinc-400 transition-transform duration-300",
+              isOpen && "transform rotate-180 text-zinc-200"
+            )}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div 
+        className={cn(
+          "transition-all duration-300 ease-in-out overflow-hidden",
+          isOpen ? "max-h-[2500px] border-t border-zinc-800/40 p-4" : "max-h-0"
+        )}
+      >
+        {step.logs.length === 0 ? (
+          <div className="text-zinc-500 text-xs italic pl-8 py-2">尚未開始執行動作。</div>
+        ) : (
+          <div className="relative pl-6 space-y-6">
+            {/* Timeline Vertical Line */}
+            <div className="absolute top-1.5 bottom-1.5 left-2.5 w-0.5 bg-zinc-800/60" />
+
+            {step.logs.map((log, index) => {
+              const logHasError = log.result?.toLowerCase().includes("fail") || log.result?.toLowerCase().includes("error");
+              const isLogPending = log.result?.toLowerCase() === "pending" || log.result?.toLowerCase() === "running";
+              
+              let timeStr = "";
+              try {
+                if (log.timestamp) {
+                  const date = new Date(log.timestamp);
+                  if (!isNaN(date.getTime())) {
+                    timeStr = date.toTimeString().split(" ")[0];
+                  } else {
+                    timeStr = log.timestamp;
+                  }
+                }
+              } catch {
+                timeStr = log.timestamp || "";
+              }
+
+              return (
+                <div key={log.id || index} className="relative group/item">
+                  {/* Timeline Dot */}
+                  <div 
+                    className={cn(
+                      "absolute -left-[20px] top-1.5 w-2 h-2 rounded-full border transition-colors duration-300",
+                      logHasError 
+                        ? "bg-rose-500 border-rose-400 shadow-sm shadow-rose-500/50" 
+                        : isLogPending
+                        ? "bg-emerald-500 border-emerald-400 animate-pulse"
+                        : "bg-zinc-700 border-zinc-600 group-hover/item:bg-zinc-500"
+                    )}
+                  />
+
+                  {/* Log Content */}
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        {/* Action Description */}
+                        <div className="font-mono text-xs text-zinc-300 font-semibold bg-zinc-900/90 px-2 py-0.5 rounded border border-zinc-800 inline-block">
+                          {log.action || "執行操作..."}
+                        </div>
+                        {/* Action Result */}
+                        <p className={cn(
+                          "text-xs leading-relaxed",
+                          logHasError ? "text-rose-400 font-medium" : "text-zinc-400"
+                        )}>
+                          {log.result || "-"}
+                        </p>
+                      </div>
+                      
+                      {timeStr && (
+                        <span className="text-[10px] text-zinc-500 font-mono flex-shrink-0">
+                          {timeStr}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* AI Response Card */}
+                    {log.aiResponse && (
+                      <div className="bg-indigo-950/10 text-indigo-300/90 border border-indigo-900/30 rounded-lg p-3 text-xs space-y-1.5 leading-relaxed mt-2">
+                        <div className="flex items-center gap-1.5 font-medium text-[11px] text-indigo-400">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>AI 推理分析</span>
+                        </div>
+                        <p className="font-sans whitespace-pre-wrap">{log.aiResponse}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Screenshot View */}
+        {step.screenshotUrl && (
+          <div className="mt-6 pl-6 pt-4 border-t border-zinc-800/30">
+            <div className="text-[10px] text-zinc-500 font-semibold mb-2 flex items-center gap-1.5 uppercase tracking-wider">
+              <ImageIcon className="w-3.5 h-3.5 text-zinc-500" />
+              <span>步驟執行截圖</span>
+            </div>
+            <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img">
+              <img 
+                src={step.screenshotUrl} 
+                alt={`Step ${step.stepIdx} Screenshot`} 
+                className="w-full h-auto object-contain transition-transform duration-500 group-hover/img:scale-[1.01] cursor-zoom-in"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none flex items-end p-2">
+                <span className="text-[10px] text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700/30">
+                  步驟 {step.stepIdx} 最終狀態畫面
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

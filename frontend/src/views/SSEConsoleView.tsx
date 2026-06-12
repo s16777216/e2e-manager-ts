@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
-import { ChevronLeft, Loader2, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react"
+import { ChevronLeft, Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSSEStream } from "../hooks/useSSEStream"
 import { useProjectData } from "../hooks/useProjectData"
 import type { Testcase } from "../types/api"
 import { api } from "../lib/api"
+import { groupLogsByStep } from "../lib/logUtils"
+import { StepAccordion } from "../components/custom/StepAccordion"
+import { cn } from "../lib/utils"
 
 interface BreadcrumbItemType {
   label: string
@@ -24,11 +27,7 @@ export default function SSEConsoleView() {
   // SSE 狀態連線
   const {
     runLogs,
-    runStatus,
-    selectedLogId,
-    setSelectedLogId,
-    imgLoaded,
-    setImgLoaded
+    runStatus
   } = useSSEStream(runId);
 
   const timelineEndRef = useRef<HTMLDivElement | null>(null);
@@ -81,9 +80,6 @@ export default function SSEConsoleView() {
       timelineEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [runLogs]);
-
-  // 當前選取步驟的詳情
-  const activeLog = runLogs.find(l => l.id === selectedLogId);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -144,181 +140,64 @@ export default function SSEConsoleView() {
         </div>
       </div>
 
-      {/* Console 左右分欄 */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        
-        {/* 左側日誌時間軸 (2/5 寬度) */}
-        <div className="w-[40%] border-r flex flex-col bg-zinc-950/20 min-w-[320px]">
-          <div className="p-4 border-b flex items-center justify-between bg-card/20">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              AI 步驟追蹤時間軸
-            </span>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              步驟數: {runLogs.length}
-            </span>
-          </div>
-
-          <ScrollArea className="flex-1 p-4">
-            <div className="flex flex-col gap-4">
-              {runLogs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
-                  <Loader2 className="animate-spin text-primary" size={24} />
-                  <span className="text-xs italic">正在等待 Agent 開始執行步驟...</span>
-                </div>
+      {/* 視覺斷言報告 (當有最終結果時，顯示在上方) */}
+      {runStatus?.finalResult && (
+        <div className="px-6 pb-4 flex-shrink-0 animate-fadeIn max-w-4xl mx-auto w-full">
+          <div className={cn(
+            "border rounded-xl p-5 flex flex-col gap-3.5 shadow-md",
+            runStatus.finalResult === "PASS"
+              ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+              : "bg-rose-950/20 border-rose-500/30 text-rose-400"
+          )}>
+            <div className="flex items-center gap-2">
+              {runStatus.finalResult === "PASS" ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
               ) : (
-                runLogs.map((log, index) => {
-                  const isSelected = selectedLogId === log.id
-                  return (
-                    <div
-                      key={log.id}
-                      onClick={() => {
-                        setSelectedLogId(log.id)
-                        setImgLoaded(false)
-                      }}
-                      className={`flex gap-3 cursor-pointer p-3 rounded-lg border transition-all duration-150 ${
-                        isSelected
-                          ? "bg-accent border-primary text-foreground"
-                          : "bg-card/40 border-border text-muted-foreground hover:border-zinc-700 hover:text-foreground"
-                      }`}
-                    >
-                      {/* 節點狀態點與線 */}
-                      <div className="flex flex-col items-center">
-                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                        }`}>
-                          {log.stepIdx + 1}
-                        </div>
-                        {index < runLogs.length - 1 && (
-                          <div className="w-0.5 flex-1 bg-border mt-2" />
-                        )}
-                      </div>
-
-                      {/* 步驟資訊 */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold truncate">
-                          {log.stepDescription}
-                        </h4>
-                        <p className="text-[10px] font-mono text-primary mt-1 truncate">
-                          {log.action}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-                          {log.result}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })
+                <XCircle className="w-5 h-5 text-rose-500" />
               )}
+              <h4 className="text-sm font-bold">
+                結果 ({runStatus.finalResult})
+              </h4>
             </div>
-            <div ref={timelineEndRef} />
-          </ScrollArea>
-        </div>
-
-        {/* 右側監控視圖 (3/5 寬度) */}
-        <ScrollArea className="flex-1 bg-zinc-950/10">
-          <div className="flex flex-col p-6 gap-6">
-            
-            {/* 瀏覽器畫面監控 */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <ImageIcon size={14} className="text-primary" />
-                  瀏覽器監控畫面 (Live Screen)
-                </h3>
-                {activeLog && (
-                  <span className="text-[10px] text-muted-foreground">
-                    步驟 {activeLog.stepIdx + 1} 畫面
-                  </span>
-                )}
-              </div>
-
-              <div className="relative border rounded-xl bg-zinc-950 overflow-hidden shadow-md aspect-video flex items-center justify-center group">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]" />
-
-                {activeLog ? (
-                  <img
-                    src={activeLog.screenshotUrl}
-                    alt="E2E Screenshot"
-                    onLoad={() => setImgLoaded(true)}
-                    className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-300 ${
-                      imgLoaded ? "opacity-100" : "opacity-0"
-                    }`}
-                  />
-                ) : runStatus?.status === "failed" && runStatus.screenshotFailUrl ? (
-                  <img
-                    src={runStatus.screenshotFailUrl}
-                    alt="E2E Failure Screenshot"
-                    className="absolute inset-0 w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2.5 text-muted-foreground relative z-10">
-                    <Loader2 size={32} className="animate-spin text-primary/80" />
-                    <span className="text-xs italic">正在擷取 AI 執行畫面...</span>
-                  </div>
-                )}
-
-                {!imgLoaded && activeLog && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <Loader2 size={24} className="animate-spin text-primary" />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 步驟執行詳情 / 視覺斷言報告 */}
-            {activeLog && (
-              <div className="bg-card border rounded-xl p-5 flex flex-col gap-4">
-                <h4 className="text-sm font-bold text-foreground border-b pb-2">
-                  步驟詳細日誌說明
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-muted-foreground font-medium">步驟描述：</span>
-                    <p className="text-foreground mt-1">{activeLog.stepDescription}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">執行動作：</span>
-                    <p className="text-primary font-mono mt-1">{activeLog.action}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <span className="text-muted-foreground font-medium">工具執行結果：</span>
-                    <p className="text-foreground mt-1 bg-zinc-950 p-2.5 rounded font-mono border overflow-x-auto whitespace-pre-wrap">
-                      {activeLog.result}
-                    </p>
-                  </div>
-                  {activeLog.aiResponse && (
-                    <div className="md:col-span-2">
-                      <span className="text-muted-foreground font-medium">AI 決策推理：</span>
-                      <p className="text-muted-foreground mt-1 italic">{activeLog.aiResponse}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 最終視覺斷言結論 */}
-            {runStatus?.finalResult && (
-              <div className={`border rounded-xl p-5 flex flex-col gap-3.5 shadow-md ${
-                runStatus.finalResult === "PASS"
-                  ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
-                  : "bg-destructive/10 border-destructive/30 text-destructive-foreground"
-              }`}>
-                <div className="flex items-center gap-2">
-                  {runStatus.finalResult === "PASS" ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-                  <h4 className="text-sm font-bold">
-                    最終審查報告 ({runStatus.finalResult})
-                  </h4>
-                </div>
-                <p className="text-xs leading-relaxed whitespace-pre-wrap">
-                  {runStatus.finalReason}
-                </p>
-              </div>
-            )}
-
+            <p className="text-xs leading-relaxed whitespace-pre-wrap">
+              {runStatus.finalReason}
+            </p>
           </div>
-        </ScrollArea>
+        </div>
+      )}
 
-      </div>
+      {/* 主日誌區 (單欄 Bento Style) */}
+      <ScrollArea className="flex-1 bg-zinc-950/40">
+        <div className="max-w-4xl mx-auto p-6 space-y-6">
+          {runLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground gap-3">
+              <Loader2 className="animate-spin text-primary" size={32} />
+              <span className="text-sm italic">正在等待 Agent 開始執行步驟...</span>
+            </div>
+          ) : (
+            <StepAccordion steps={groupLogsByStep(runLogs)} />
+          )}
+
+          {/* 如果任務失敗且有全域失敗截圖，但在步驟中沒顯示出來，可以在此處作為備份展示 */}
+          {runStatus?.status === "failed" && runStatus.screenshotFailUrl && (
+            <div className="mt-4 bg-zinc-900/20 border border-zinc-800 p-4 rounded-xl space-y-2">
+              <h4 className="text-xs font-semibold text-rose-400 flex items-center gap-1.5 uppercase">
+                <XCircle className="w-4 h-4 text-rose-500 animate-pulse" />
+                任務中斷/失敗截圖
+              </h4>
+              <div className="relative overflow-hidden rounded-lg border border-rose-900 bg-zinc-950 max-w-2xl">
+                <img
+                  src={runStatus.screenshotFailUrl}
+                  alt="E2E Failure Screenshot"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            </div>
+          )}
+
+          <div ref={timelineEndRef} />
+        </div>
+      </ScrollArea>
     </div>
   )
 }

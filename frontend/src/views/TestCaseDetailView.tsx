@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useParams, useNavigate, useOutletContext } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { api } from "../lib/api"
@@ -479,7 +479,7 @@ export default function TestCaseDetailView() {
                             <tr
                               key={run.id}
                               onClick={() => navigate(`/project/${projectId}/run/${run.id}`)}
-                              className="group cursor-pointer hover:bg-zinc-900/20 transition-colors"
+                              className="group cursor-pointer hover:bg-zinc-900/20 transition-colors border-b border-zinc-850/30 text-zinc-300 hover:text-zinc-100"
                             >
                               {/* 執行編號 */}
                               <td className="px-6 py-4 font-mono text-zinc-200 group-hover:text-primary transition-colors">
