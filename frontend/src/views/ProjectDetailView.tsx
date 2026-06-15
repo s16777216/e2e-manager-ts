@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useOutletContext, useNavigate } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { useGroupData } from "../hooks/useGroupData"
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
-import type { TestGroup, Testcase, Task } from "../types/api"
+import type { TestGroup, Testcase } from "../types/api"
 
 interface BreadcrumbItemType {
   label: string
