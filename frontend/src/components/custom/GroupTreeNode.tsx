@@ -1,4 +1,4 @@
-import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2 } from "lucide-react"
+import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2, Play } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 export interface FlatTreeRow {
@@ -21,6 +21,7 @@ interface GroupTreeNodeProps {
   onToggleExpand: (groupId: string) => void;
   onAddSubgroup: (parentId: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onRunGroup?: (groupId: string) => void;
   projectId: string;
 }
 
@@ -32,6 +33,7 @@ export function GroupTreeNode({
   onToggleExpand,
   onAddSubgroup,
   onDeleteGroup,
+  onRunGroup,
   projectId
 }: GroupTreeNodeProps) {
   const navigate = useNavigate()
@@ -152,6 +154,18 @@ export function GroupTreeNode({
           {/* 操作按鈕 (僅群組有，且在 hover 時才顯示) */}
           {row.type === "group" && (
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
+              {onRunGroup && (
+                <button
+                  title="執行此群組所有測試案例"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onRunGroup(row.id)
+                  }}
+                  className="p-1.5 hover:bg-zinc-800 rounded text-emerald-500 hover:text-emerald-400 transition-colors"
+                >
+                  <Play size={12} className="fill-current" />
+                </button>
+              )}
               <button
                 title="新增子群組"
                 onClick={(e) => {

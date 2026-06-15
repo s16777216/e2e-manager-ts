@@ -3,6 +3,7 @@ import { TestRun } from "./entities/TestRun.js";
 import { BrowserManager } from "./browser.js";
 import { E2EGraphBuilder } from "./graph.js";
 import { TaskFSM } from "./queue/taskFSM.js";
+import { Task } from "./entities/Task.js";
 
 export class TaskQueue {
   private isRunning = false;
@@ -138,6 +139,86 @@ export class TaskQueue {
       try {
         await browserManager.closeBrowser();
       } catch (e) {}
+
+      // 更新 Task 進度
+      try {
+        const freshRun = await AppDataSource.getRepository(TestRun).findOne({
+          where: { id: runId },
+          relations: { task: true }
+        });
+        if (freshRun && freshRun.task) {
+          await this.updateTaskProgress(freshRun.task.id);
+        }
+      } catch (taskErr: any) {
+        console.error(`[Worker] 更新 Task 進度失敗 taskId: ${runId}`, taskErr.message);
+      }
+    }
+  }
+
+  /**
+   * 原子性更新 Task 的 doneCount，並在全部完成時計算 finalResult 與更新狀態
+   */
+  public async updateTaskProgress(taskId: string): Promise<void> {
+    const taskRepo = AppDataSource.getRepository(Task);
+
+    try {
+      // 1. 原子性 update
+      await AppDataSource.transaction(async (manager) => {
+        await manager.query(
+          `UPDATE task SET "doneCount" = "doneCount" + 1 WHERE id = $1`,
+          [taskId]
+        );
+      });
+
+      // 2. 獲取更新後的 Task 與關聯
+      const task = await taskRepo.findOne({
+        where: { id: taskId },
+        relations: { runs: true }
+      });
+
+      if (!task) {
+        console.error(`[TaskQueue] updateTaskProgress: 找不到 Task ${taskId}`);
+        return;
+      }
+
+      // 3. 判斷是否全部完成
+      if (task.doneCount < task.totalCount) {
+        // 更新狀態為 running
+        if (task.status === "pending") {
+          task.status = "running";
+          await taskRepo.save(task);
+        }
+
+        await AppDataSource.query(`SELECT pg_notify('task_updates', $1)`, [
+          JSON.stringify({
+            taskId: task.id,
+            event: "progress",
+            doneCount: task.doneCount,
+            totalCount: task.totalCount,
+            status: task.status
+          })
+        ]);
+      } else {
+        // 計算 finalResult 且 status = "done"
+        const allPassed = task.runs.every(r => r.status === "passed");
+        task.finalResult = allPassed ? "PASS" : "FAIL";
+        task.status = "done";
+        task.finishedAt = new Date();
+        await taskRepo.save(task);
+
+        await AppDataSource.query(`SELECT pg_notify('task_updates', $1)`, [
+          JSON.stringify({
+            taskId: task.id,
+            event: "completed",
+            doneCount: task.doneCount,
+            totalCount: task.totalCount,
+            finalResult: task.finalResult,
+            status: task.status
+          })
+        ]);
+      }
+    } catch (err: any) {
+      console.error(`[TaskQueue] updateTaskProgress 錯誤 Task ${taskId}：`, err.message);
     }
   }
 
@@ -172,9 +253,6 @@ export class TaskQueue {
     }, intervalMs);
   }
 
-  /**
-   * 停止背景 Worker 輪詢
-   */
   public stopWorker() {
     if (this.workerInterval) {
       clearInterval(this.workerInterval);
@@ -183,3 +261,4 @@ export class TaskQueue {
     }
   }
 }
+

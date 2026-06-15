@@ -1,4 +1,4 @@
-import type { Project, TestGroup, Testcase, TestRun } from "../types/api";
+import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun } from "../types/api";
 
 const BASE_URL = "/api";
 
@@ -83,13 +83,28 @@ export const api = {
 
   // Run APIs
   triggerRun: (testcaseId: string) =>
-    request<{ message: string; runId: string; status: string }>(
+    request<{ taskId: string; runs: TaskRun[] }>(
       `/testcases/${testcaseId}/run`,
       { method: "POST" },
     ),
+  runProject: (projectId: string) =>
+    request<{
+      taskId: string;
+      runs: TaskRun[];
+    }>(`/projects/${projectId}/run`, { method: "POST" }),
+  runGroup: (groupId: string) =>
+    request<{
+      taskId: string;
+      runs: TaskRun[];
+    }>(`/groups/${groupId}/run`, { method: "POST" }),
   getRunStatus: (runId: string) => request<TestRun>(`/runs/${runId}`),
   cancelRun: (runId: string) =>
     request<{ message: string }>(`/runs/${runId}`, { method: "DELETE" }),
+
+  // Task APIs
+  getTask: (taskId: string) => request<Task>(`/tasks/${taskId}`),
+  getTaskStreamUrl: (taskId: string) => `${BASE_URL}/tasks/${taskId}/stream`,
+  getProjectTasks: (projectId: string) => request<Task[]>(`/projects/${projectId}/tasks`),
 
   // SSE Stream URL helper
   getStreamUrl: (runId: string) => `${BASE_URL}/runs/${runId}/stream`,

@@ -5,6 +5,7 @@ import ProjectsView from "./views/ProjectsView"
 import ProjectDetailView from "./views/ProjectDetailView"
 import TestCaseDetailView from "./views/TestCaseDetailView"
 import SSEConsoleView from "./views/SSEConsoleView"
+import TaskDetailView from "./views/TaskDetailView"
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
       {
         path: "project/:projectId/run/:runId",
         element: <SSEConsoleView />
+      },
+      {
+        path: "project/:projectId/tasks/:taskId",
+        element: <TaskDetailView />
       },
       {
         path: "*",

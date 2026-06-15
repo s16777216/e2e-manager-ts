@@ -7,6 +7,7 @@ import { TestGroup } from "./entities/TestGroup.js";
 import { Testcase } from "./entities/Testcase.js";
 import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
+import { Task } from "./entities/Task.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -15,7 +16,7 @@ export const AppDataSource = new DataSource({
   url: databaseUrl || "postgres://postgres:postgres@localhost:5432/e2e_manager",
   synchronize: true, // 自動同步 Schema 到資料庫
   logging: false,
-  entities: [Project, TestGroup, Testcase, TestRun, TestLog],
+  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task],
   extra: {
     max: 1, // 限制連線池大小為 1，防範 WSL2 Mirrored 網路的 TCP 重複連線 bug
   },
@@ -59,7 +60,22 @@ export async function initDB() {
       .execute();
 
     if (result.affected && result.affected > 0) {
-      console.log(`[DB] 成功清理重置了 ${result.affected} 筆未完成的遺留任務。`);
+      console.log(`[DB] 成功清理重置了 ${result.affected} 筆未完成的遺留 TestRun。`);
+    }
+
+    // 同步重置未完成的 Task
+    const taskResult = await AppDataSource.createQueryBuilder()
+      .update(Task)
+      .set({
+        status: "done",
+        finalResult: "FAIL",
+        finishedAt: new Date(),
+      })
+      .where("status IN (:...statuses)", { statuses: ["running", "pending"] })
+      .execute();
+
+    if (taskResult.affected && taskResult.affected > 0) {
+      console.log(`[DB] 成功清理重置了 ${taskResult.affected} 筆未完成的遺留 Task。`);
     } else {
       console.log("[DB] 無遺留卡死任務，清理完成。");
     }

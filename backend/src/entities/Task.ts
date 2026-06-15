@@ -1,0 +1,35 @@
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from "typeorm";
+import { TestRun } from "./TestRun.js";
+
+@Entity()
+export class Task {
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
+
+  @Column("varchar")
+  scope!: "project" | "group" | "testcase";
+
+  @Column("varchar")
+  scopeId!: string;
+
+  @Column("varchar", { default: "pending" })
+  status!: "pending" | "running" | "done";
+
+  @Column("varchar", { nullable: true })
+  finalResult!: "PASS" | "FAIL" | null;
+
+  @Column("int")
+  totalCount!: number;
+
+  @Column("int", { default: 0 })
+  doneCount!: number;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @Column("timestamp", { nullable: true })
+  finishedAt!: Date | null;
+
+  @OneToMany(() => TestRun, run => run.task)
+  runs!: TestRun[];
+}

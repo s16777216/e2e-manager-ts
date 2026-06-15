@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
-import { useParams, useOutletContext } from "react-router-dom"
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useOutletContext, useNavigate } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
 import { NewSubgroupDialog } from "../components/custom/NewSubgroupDialog"
 import { api } from "../lib/api"
-import { Plus, Sparkles, Trash2, Loader2 } from "lucide-react"
+import { Plus, Sparkles, Trash2, Loader2, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
-import type { TestGroup, Testcase } from "../types/api"
+import type { TestGroup, Testcase, Task } from "../types/api"
 
 interface BreadcrumbItemType {
   label: string
@@ -26,10 +26,52 @@ interface OutletContextType {
 
 export default function ProjectDetailView() {
   const { projectId } = useParams()
+  const navigate = useNavigate()
 
   // 專案資訊
   const { projects } = useProjectData()
   const activeProject = projects.find((p) => p.id === projectId)
+
+  // 批次執行 Task 歷史狀態
+  const [historyTasks, setHistoryTasks] = useState<Task[]>([])
+
+  // 載入 Task 歷史
+  const loadHistoryTasks = useCallback(async () => {
+    if (!projectId) return
+    try {
+      const tasks = await api.getProjectTasks(projectId)
+      setHistoryTasks(tasks)
+    } catch (err) {
+      console.error("載入 Task 歷史失敗：", err)
+    }
+  }, [projectId])
+
+  // 觸發專案全部執行
+  const handleRunAllProject = async () => {
+    if (!projectId) return
+    try {
+      toast.info("正在初始化專案測試任務...")
+      const res = await api.runProject(projectId)
+      toast.success("專案測試任務已啟動！正在轉跳監控頁面...")
+      navigate(`/project/${projectId}/tasks/${res.taskId}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("啟動專案測試失敗：" + msg)
+    }
+  }
+
+  // 觸發群組全部執行
+  const handleRunGroup = async (groupId: string) => {
+    try {
+      toast.info("正在初始化群組測試任務...")
+      const res = await api.runGroup(groupId)
+      toast.success("群組測試任務已啟動！正在轉跳監控頁面...")
+      navigate(`/project/${projectId}/tasks/${res.taskId}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("啟動群組測試失敗：" + msg)
+    }
+  }
 
   const { setBreadcrumbs } = useOutletContext<OutletContextType>()
 
@@ -125,6 +167,12 @@ export default function ProjectDetailView() {
 
     reloadActiveTestcases()
   }, [refreshTrigger, projectId, expandedGroups])
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      loadHistoryTasks()
+    })
+  }, [loadHistoryTasks, refreshTrigger])
 
   // 處理群組展開與收合 (附帶 lazy loading)
   const handleToggleExpand = async (groupId: string) => {
@@ -306,6 +354,12 @@ export default function ProjectDetailView() {
         {/* 頂部操作按鈕 */}
         <div className="flex items-center gap-3">
           <Button
+            onClick={handleRunAllProject}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white transition-all font-semibold flex items-center gap-2 px-4 py-5 shadow-lg shadow-emerald-600/10 border-none"
+          >
+            <Play size={14} fill="currentColor" /> 執行所有案例
+          </Button>
+          <Button
             variant="outline"
             onClick={() => triggerAddGroup(selectedGroupId || null)}
             className="border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 transition-all font-semibold flex items-center gap-2 px-4 py-5"
@@ -325,6 +379,8 @@ export default function ProjectDetailView() {
           </Button>
         </div>
       </div>
+
+
 
       {/* 測試案例樹狀表格目錄 */}
       <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col">
@@ -360,9 +416,89 @@ export default function ProjectDetailView() {
                       onToggleExpand={handleToggleExpand}
                       onAddSubgroup={(parentId) => triggerAddGroup(parentId)}
                       onDeleteGroup={handleDeleteGroup}
+                      onRunGroup={handleRunGroup}
                       projectId={projectId || ""}
                     />
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 批次任務執行歷史紀錄 */}
+      <div className="max-w-6xl w-full mx-auto mt-8 flex flex-col gap-3">
+        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          批次任務執行歷史
+        </h3>
+        <div className="border border-zinc-850 bg-zinc-900/30 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
+          {historyTasks.length === 0 ? (
+            <div className="text-center py-12 text-xs text-zinc-500 italic">
+              目前暫無批次執行歷史紀錄。
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-zinc-300">
+                <thead>
+                  <tr className="border-b border-zinc-850 bg-zinc-950/40 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                    <th className="px-6 py-4">任務編號</th>
+                    <th className="px-6 py-4">範圍</th>
+                    <th className="px-6 py-4">進度</th>
+                    <th className="px-6 py-4">建立時間</th>
+                    <th className="px-6 py-4">結果</th>
+                    <th className="px-6 py-4 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-850/50 text-sm">
+                  {historyTasks.map((t) => {
+                    const taskShortId = t.id.substring(0, 8);
+                    const scopeLabel = t.scope === "project" ? "專案" : t.scope === "group" ? "群組" : "單一案例";
+
+                    const renderResultBadge = () => {
+                      if (t.status !== "done") {
+                        return (
+                          <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full font-medium">
+                            執行中
+                          </span>
+                        );
+                      }
+                      return t.finalResult === "PASS" ? (
+                        <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
+                          成功
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full font-medium">
+                          失敗
+                        </span>
+                      );
+                    };
+
+                    return (
+                      <tr
+                        key={t.id}
+                        onClick={() => navigate(`/project/${projectId}/tasks/${t.id}`)}
+                        className="cursor-pointer hover:bg-zinc-900/20 transition-colors text-zinc-300 hover:text-zinc-100"
+                      >
+                        <td className="px-6 py-4 font-mono text-zinc-200">
+                          #{taskShortId}
+                        </td>
+                        <td className="px-6 py-4">{scopeLabel}</td>
+                        <td className="px-6 py-4 font-mono">
+                          {t.doneCount} / {t.totalCount}
+                        </td>
+                        <td className="px-6 py-4 text-xs font-mono text-zinc-400">
+                          {new Date(t.createdAt).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">{renderResultBadge()}</td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-xs text-zinc-500 hover:text-zinc-300 font-medium">
+                            詳情 &rarr;
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

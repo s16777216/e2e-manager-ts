@@ -153,7 +153,7 @@ export default function TestCaseDetailView() {
       const res = await api.triggerRun(testCaseId)
       toast.success("測試任務已啟動！正在轉跳監控頁面...")
       // 跳轉到 SSE 即時監控頁面
-      navigate(`/project/${projectId}/run/${res.runId}`)
+      navigate(`/project/${projectId}/tasks/${res.taskId}`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       toast.error("執行測試失敗：" + msg)

@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Testcase } from "./Testcase.js";
 import { TestLog } from "./TestLog.js";
+import { Task } from "./Task.js";
 
 @Entity()
 export class TestRun {
@@ -31,9 +32,13 @@ export class TestRun {
   @OneToMany(() => TestLog, log => log.run)
   logs!: TestLog[];
 
+  @ManyToOne(() => Task, task => task.runs, { nullable: true, onDelete: "SET NULL" })
+  task!: Task | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
   @UpdateDateColumn()
   updatedAt!: Date;
 }
+

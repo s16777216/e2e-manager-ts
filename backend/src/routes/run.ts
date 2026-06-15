@@ -5,6 +5,8 @@ import { AppDataSource } from "../db.js";
 import { Testcase } from "../entities/Testcase.js";
 import { TestRun } from "../entities/TestRun.js";
 import { TestLog } from "../entities/TestLog.js";
+import { TestGroup } from "../entities/TestGroup.js";
+import { Task } from "../entities/Task.js";
 
 export const runRouter = new Hono();
 
@@ -15,9 +17,17 @@ runRouter.post("/testcases/:id/run", async (c) => {
   });
   if (!testcase) return c.json({ error: "找不到指定的測試案例" }, 404);
 
+  const task = new Task();
+  task.scope = "testcase";
+  task.scopeId = testcaseId;
+  task.totalCount = 1;
+  task.status = "pending";
+  await AppDataSource.getRepository(Task).save(task);
+
   const run = new TestRun();
   run.testcase = testcase;
   run.status = "pending";
+  run.task = task;
 
   await AppDataSource.getRepository(TestRun).save(run);
 
@@ -31,7 +41,150 @@ runRouter.post("/testcases/:id/run", async (c) => {
     }),
   ]);
 
-  return c.json({ runId: run.id, status: run.status }, 202);
+  return c.json({
+    taskId: task.id,
+    runs: [{
+      runId: run.id,
+      testcaseId: testcase.id,
+      testcaseName: testcase.name,
+      status: run.status,
+    }]
+  }, 202);
+});
+
+runRouter.post("/projects/:projectId/run", async (c) => {
+  const projectId = c.req.param("projectId");
+  const testcases = await AppDataSource.getRepository(Testcase)
+    .createQueryBuilder("testcase")
+    .innerJoin("testcase.group", "group")
+    .where("group.projectId = :projectId", { projectId })
+    .getMany();
+
+  if (testcases.length === 0) {
+    return c.json({ error: "此專案下無任何測試案例" }, 400);
+  }
+
+  const task = new Task();
+  task.scope = "project";
+  task.scopeId = projectId;
+  task.totalCount = testcases.length;
+  task.status = "pending";
+  await AppDataSource.getRepository(Task).save(task);
+
+  const runRepo = AppDataSource.getRepository(TestRun);
+  const runsCreated = [];
+
+  for (const testcase of testcases) {
+    const run = new TestRun();
+    run.testcase = testcase;
+    run.status = "pending";
+    run.task = task;
+    await runRepo.save(run);
+
+    await AppDataSource.query(`SELECT pg_notify('test_run_logs', $1)`, [
+      JSON.stringify({
+        runId: run.id,
+        status: "pending",
+        event: "queued",
+        timestamp: new Date().toISOString(),
+      }),
+    ]);
+
+    runsCreated.push({
+      runId: run.id,
+      testcaseId: testcase.id,
+      testcaseName: testcase.name,
+      status: run.status,
+    });
+  }
+
+  return c.json({
+    taskId: task.id,
+    runs: runsCreated,
+  }, 202);
+});
+
+runRouter.post("/groups/:groupId/run", async (c) => {
+  const groupId = c.req.param("groupId");
+  const groupRepo = AppDataSource.getRepository(TestGroup);
+  const parentGroup = await groupRepo.findOne({
+    where: { id: groupId },
+    relations: { project: true }
+  });
+  if (!parentGroup) return c.json({ error: "找不到指定的群組" }, 404);
+
+  const projectId = parentGroup.project?.id;
+  if (!projectId) return c.json({ error: "該群組無關聯之專案" }, 400);
+
+  // 1. 載入該專案下的所有群組
+  const allGroups = await groupRepo.find({
+    where: { project: { id: projectId } },
+    relations: { parent: true }
+  });
+
+  // 2. 在記憶體中遞迴查找所有子群組
+  const descendantIds = new Set<string>([groupId]);
+  let added = true;
+  while (added) {
+    added = false;
+    for (const g of allGroups) {
+      if (g.parent && descendantIds.has(g.parent.id) && !descendantIds.has(g.id)) {
+        descendantIds.add(g.id);
+        added = true;
+      }
+    }
+  }
+
+  const groupIds = Array.from(descendantIds);
+
+  const testcases = await AppDataSource.getRepository(Testcase)
+    .createQueryBuilder("testcase")
+    .innerJoin("testcase.group", "group")
+    .where("group.id IN (:...groupIds)", { groupIds })
+    .getMany();
+
+  if (testcases.length === 0) {
+    return c.json({ error: "此群組下無任何測試案例" }, 400);
+  }
+
+  const task = new Task();
+  task.scope = "group";
+  task.scopeId = groupId;
+  task.totalCount = testcases.length;
+  task.status = "pending";
+  await AppDataSource.getRepository(Task).save(task);
+
+  const runRepo = AppDataSource.getRepository(TestRun);
+  const runsCreated = [];
+
+  for (const testcase of testcases) {
+    const run = new TestRun();
+    run.testcase = testcase;
+    run.status = "pending";
+    run.task = task;
+    await runRepo.save(run);
+
+    await AppDataSource.query(`SELECT pg_notify('test_run_logs', $1)`, [
+      JSON.stringify({
+        runId: run.id,
+        status: "pending",
+        event: "queued",
+        timestamp: new Date().toISOString(),
+      }),
+    ]);
+
+    runsCreated.push({
+      runId: run.id,
+      testcaseId: testcase.id,
+      testcaseName: testcase.name,
+      status: run.status,
+    });
+  }
+
+  return c.json({
+    taskId: task.id,
+    runs: runsCreated,
+  }, 202);
 });
 
 runRouter.get("/runs/:runId", async (c) => {

@@ -10,7 +10,7 @@ import { useSSEStream } from "../hooks/useSSEStream"
 import type { TestGroup, Testcase } from "../types/api"
 
 export default function GroupDashboardView() {
-  const { groupId } = useParams();
+  const { groupId, projectId } = useParams();
   const navigate = useNavigate();
   const { groups } = useOutletContext<{ groups: TestGroup[] }>();
 
@@ -84,10 +84,10 @@ export default function GroupDashboardView() {
   // 觸發測試執行
   const handleRun = async (tcId: string) => {
     setIsTriggering(tcId);
-    const runId = await triggerRun(tcId);
+    const taskId = await triggerRun(tcId);
     setIsTriggering(null);
-    if (runId) {
-      navigate(`/runs/${runId}`);
+    if (taskId) {
+      navigate(`/project/${projectId}/tasks/${taskId}`);
     }
   };
 

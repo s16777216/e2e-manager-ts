@@ -17,13 +17,8 @@ export function useSSEStream(runId: string | undefined) {
       setRunStatus(null)
 
       const res = await api.triggerRun(testcaseId)
-      setRunStatus({
-        id: res.runId,
-        status: "pending",
-        logs: []
-      })
       toast.success("測試已啟動，正在載入執行環境...")
-      return res.runId
+      return res.taskId
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       toast.error("啟動測試失敗：" + msg)

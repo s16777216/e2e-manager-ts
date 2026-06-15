@@ -48,3 +48,24 @@ export interface TestLog {
   screenshotUrl?: string;
   timestamp: string;
 }
+
+export interface TaskRun {
+  runId: string;
+  testcaseId: string | null;
+  testcaseName: string;
+  status: "pending" | "running" | "passed" | "failed" | "error";
+}
+
+export interface Task {
+  id: string;
+  scope: "project" | "group" | "testcase";
+  scopeId: string;
+  status: "pending" | "running" | "done";
+  finalResult: "PASS" | "FAIL" | null;
+  totalCount: number;
+  doneCount: number;
+  createdAt: string;
+  finishedAt?: string | null;
+  runs?: TaskRun[];
+}
+
