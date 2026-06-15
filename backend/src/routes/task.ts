@@ -3,8 +3,62 @@ import { streamSSE } from "hono/streaming";
 import pg from "pg";
 import { AppDataSource } from "../db.js";
 import { Task } from "../entities/Task.js";
+import { Project } from "../entities/Project.js";
 
 export const taskRouter = new Hono();
+
+// GET /tasks 全域任務歷史紀錄
+taskRouter.get("/tasks", async (c) => {
+  const tasks = await AppDataSource.getRepository(Task).find({
+    relations: {
+      runs: {
+        testcase: {
+          group: {
+            project: true
+          }
+        }
+      }
+    },
+    order: { createdAt: "DESC" },
+    take: 100
+  });
+
+  const projects = await AppDataSource.getRepository(Project).find();
+  const projectMap = new Map(projects.map(p => [p.id, p.name]));
+
+  const formatted = tasks.map(t => {
+    let projectId = "";
+    let projectName = "未知專案";
+
+    if (t.scope === "project") {
+      projectId = t.scopeId;
+      projectName = projectMap.get(t.scopeId) || "未知專案";
+    } else {
+      const firstRun = t.runs?.[0];
+      const proj = firstRun?.testcase?.group?.project;
+      if (proj) {
+        projectId = proj.id;
+        projectName = proj.name;
+      }
+    }
+
+    return {
+      id: t.id,
+      scope: t.scope,
+      scopeId: t.scopeId,
+      status: t.status,
+      finalResult: t.finalResult,
+      totalCount: t.totalCount,
+      doneCount: t.doneCount,
+      createdAt: t.createdAt,
+      finishedAt: t.finishedAt,
+      projectId,
+      projectName
+    };
+  });
+
+  return c.json(formatted);
+});
 
 // 2.4 新增 GET /tasks/:taskId 端點
 taskRouter.get("/tasks/:taskId", async (c) => {

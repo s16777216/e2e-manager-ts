@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
-import { Settings, Activity, Folder, Home, ChevronRight } from "lucide-react"
+import { Settings, Activity, Folder, Home, ChevronRight, Clock } from "lucide-react"
 import { useProjectData } from "../hooks/useProjectData"
 
 export interface BreadcrumbItem {
@@ -68,6 +68,17 @@ export default function RootLayout() {
             >
               <Folder size={16} />
               <span>專案列表 (Projects)</span>
+            </button>
+            <button
+              onClick={() => navigate("/tasks")}
+              className={`flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                isActive("/tasks")
+                  ? "bg-accent text-accent-foreground border-l-2 border-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Clock size={16} />
+              <span>執行紀錄 (History)</span>
             </button>
           </nav>
         </div>

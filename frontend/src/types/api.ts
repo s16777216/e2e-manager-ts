@@ -67,5 +67,7 @@ export interface Task {
   createdAt: string;
   finishedAt?: string | null;
   runs?: TaskRun[];
+  projectId?: string;
+  projectName?: string;
 }
 

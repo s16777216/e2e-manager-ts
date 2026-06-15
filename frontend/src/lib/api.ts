@@ -105,6 +105,7 @@ export const api = {
   getTask: (taskId: string) => request<Task>(`/tasks/${taskId}`),
   getTaskStreamUrl: (taskId: string) => `${BASE_URL}/tasks/${taskId}/stream`,
   getProjectTasks: (projectId: string) => request<Task[]>(`/projects/${projectId}/tasks`),
+  getAllTasks: () => request<Task[]>("/tasks"),
 
   // SSE Stream URL helper
   getStreamUrl: (runId: string) => `${BASE_URL}/runs/${runId}/stream`,
