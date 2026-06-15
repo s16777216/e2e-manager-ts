@@ -15,7 +15,7 @@ export default function Topbar(props: TopbarProps) {
   const navigate = useNavigate();
 
   return (
-    <header className="h-16 flex items-center border-b px-6 flex-shrink-0 bg-zinc-950/20 backdrop-blur-md gap-2 select-none">
+    <header className="h-16 flex items-center px-6 flex-shrink-0 bg-zinc-950/20 backdrop-blur-md gap-2 select-none">
       {/* 全域麵包屑 Header - 固定 h-16 且帶有 border-b */}
       {breadcrumbs.length > 0 ? (
         <nav className="flex items-center gap-2 text-sm text-muted-foreground">
