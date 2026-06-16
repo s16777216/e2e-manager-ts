@@ -104,6 +104,22 @@ export default function SSEConsoleView() {
             <p className="text-xs leading-relaxed whitespace-pre-wrap">
               {runStatus.finalReason}
             </p>
+            {runStatus.totalTokens !== undefined && runStatus.totalTokens > 0 && (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-3 border-t border-zinc-800/40 text-[10px] text-zinc-400 font-mono">
+                {runStatus.asserterTotalTokens !== undefined && runStatus.asserterTotalTokens > 0 && (
+                  <div>
+                    <span>視覺斷言: </span>
+                    <span className="text-zinc-300 font-semibold">{runStatus.asserterTotalTokens}</span>
+                    <span className="text-zinc-500"> (輸入:{runStatus.asserterPromptTokens} / 輸出:{runStatus.asserterCompletionTokens})</span>
+                  </div>
+                )}
+                <div>
+                  <span>總計消耗: </span>
+                  <span className="text-indigo-400 font-bold">{runStatus.totalTokens}</span>
+                  <span className="text-zinc-500"> (輸入:{runStatus.totalPromptTokens} / 輸出:{runStatus.totalCompletionTokens})</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

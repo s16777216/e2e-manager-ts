@@ -204,6 +204,9 @@ runRouter.get("/runs/:runId", async (c) => {
     result: log.result,
     aiResponse: log.aiResponse,
     screenshotUrl: `/api/logs/${log.id}/screenshot`,
+    promptTokens: log.promptTokens,
+    completionTokens: log.completionTokens,
+    totalTokens: log.totalTokens,
   }));
 
   return c.json({
@@ -217,6 +220,12 @@ runRouter.get("/runs/:runId", async (c) => {
     screenshotFailUrl: run.screenshotFailData
       ? `/api/runs/${run.id}/screenshots/fail`
       : null,
+    asserterPromptTokens: run.asserterPromptTokens,
+    asserterCompletionTokens: run.asserterCompletionTokens,
+    asserterTotalTokens: run.asserterTotalTokens,
+    totalPromptTokens: run.totalPromptTokens,
+    totalCompletionTokens: run.totalCompletionTokens,
+    totalTokens: run.totalTokens,
     logs,
   });
 });

@@ -42,6 +42,8 @@ taskRouter.get("/tasks", async (c) => {
       }
     }
 
+    const totalTokens = t.runs?.reduce((sum, r) => sum + (r.totalTokens || 0), 0) || 0;
+
     return {
       id: t.id,
       scope: t.scope,
@@ -53,7 +55,8 @@ taskRouter.get("/tasks", async (c) => {
       createdAt: t.createdAt,
       finishedAt: t.finishedAt,
       projectId,
-      projectName
+      projectName,
+      totalTokens
     };
   });
 

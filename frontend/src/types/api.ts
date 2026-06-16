@@ -36,6 +36,12 @@ export interface TestRun {
   finalReason?: string;
   screenshotFailUrl?: string;
   logs?: TestLog[];
+  asserterPromptTokens?: number;
+  asserterCompletionTokens?: number;
+  asserterTotalTokens?: number;
+  totalPromptTokens?: number;
+  totalCompletionTokens?: number;
+  totalTokens?: number;
 }
 
 export interface TestLog {
@@ -47,6 +53,9 @@ export interface TestLog {
   aiResponse?: string;
   screenshotUrl?: string;
   timestamp: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 }
 
 export interface TaskRun {
@@ -69,5 +78,6 @@ export interface Task {
   runs?: TaskRun[];
   projectId?: string;
   projectName?: string;
+  totalTokens?: number;
 }
 

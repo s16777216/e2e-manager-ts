@@ -80,6 +80,32 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
         </div>
 
         <div className="flex items-center gap-3">
+          {step.totalTokens > 0 && (
+            <span className="relative group/tooltip flex items-center gap-1 text-[10px] text-zinc-300 bg-indigo-950/40 px-2.5 py-0.5 rounded-full border border-indigo-500/20 transition-all duration-300 hover:border-indigo-400/40 hover:bg-indigo-900/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <span>{step.totalTokens} Tokens</span>
+              
+              {/* Tooltip */}
+              <span className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:flex flex-col gap-1 w-36 bg-zinc-950/95 border border-zinc-800/80 p-2.5 rounded-lg shadow-xl backdrop-blur-md text-zinc-300 font-mono text-[9px] z-50 animate-fadeIn pointer-events-none">
+                <div className="flex justify-between border-b border-zinc-800/80 pb-1 mb-1 font-sans text-[10px] font-semibold text-zinc-200">
+                  <span>Token 明細</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">輸入:</span>
+                  <span className="text-zinc-300 font-semibold">{step.promptTokens}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">輸出:</span>
+                  <span className="text-zinc-300 font-semibold">{step.completionTokens}</span>
+                </div>
+                <div className="flex justify-between border-t border-zinc-800/80 pt-1 mt-1">
+                  <span className="text-zinc-400 font-sans font-semibold">總計:</span>
+                  <span className="text-indigo-400 font-bold">{step.totalTokens}</span>
+                </div>
+              </span>
+            </span>
+          )}
+
           {step.screenshotUrl && (
             <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-700/50">
               <ImageIcon className="w-3 h-3 text-indigo-400" />

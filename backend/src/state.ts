@@ -7,6 +7,9 @@ export interface LogEntry {
   result: string;
   ai_response?: string;
   timestamp: string;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
 }
 
 export const TestState = Annotation.Root({

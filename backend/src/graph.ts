@@ -42,7 +42,7 @@ export class E2EGraphBuilder {
       model: "gemini-3.1-flash-lite",
       temperature: 0.0,
       apiKey: apiKey
-    }).withStructuredOutput(AssertionResultSchema);
+    }).withStructuredOutput(AssertionResultSchema, { includeRaw: true });
   }
 
   /**
@@ -98,6 +98,10 @@ export class E2EGraphBuilder {
     const tool_calls = response.tool_calls || [];
     const logs = [...(state.logs || [])];
 
+    const prompt_tokens = response.usage_metadata?.input_tokens ?? 0;
+    const completion_tokens = response.usage_metadata?.output_tokens ?? 0;
+    const total_tokens = response.usage_metadata?.total_tokens ?? 0;
+
     // 4. 如果 AI 沒有呼叫工具，則記錄錯誤並增加重試次數
     if (tool_calls.length === 0) {
       logs.push({
@@ -106,7 +110,10 @@ export class E2EGraphBuilder {
         action: "none",
         result: "AI Agent 未呼召 any 工具，直接回覆文字說明",
         ai_response: typeof response.content === "string" ? response.content : JSON.stringify(response.content),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        prompt_tokens,
+        completion_tokens,
+        total_tokens
       });
       return {
         logs,
@@ -117,12 +124,17 @@ export class E2EGraphBuilder {
     }
 
     // 5. 依序執行工具呼叫
-    for (const tc of tool_calls) {
+    for (let i = 0; i < tool_calls.length; i++) {
+      const tc = tool_calls[i];
       const tool_name = tc.name;
       const tool_args = tc.args;
 
       // 尋找對應的工具並執行
       const selected_tool = this.tools.find((t) => t.name === tool_name);
+      const pTokens = i === 0 ? prompt_tokens : 0;
+      const cTokens = i === 0 ? completion_tokens : 0;
+      const tTokens = i === 0 ? total_tokens : 0;
+
       if (selected_tool) {
         const tool_result = await selected_tool.invoke(tool_args);
         logs.push({
@@ -130,7 +142,10 @@ export class E2EGraphBuilder {
           step_description: step_content,
           action: `${tool_name}(${JSON.stringify(tool_args)})`,
           result: typeof tool_result === "string" ? tool_result : JSON.stringify(tool_result),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          prompt_tokens: pTokens,
+          completion_tokens: cTokens,
+          total_tokens: tTokens
         });
       } else {
         logs.push({
@@ -138,7 +153,10 @@ export class E2EGraphBuilder {
           step_description: step_content,
           action: `unknown_tool: ${tool_name}`,
           result: "無法辨識的工具",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          prompt_tokens: pTokens,
+          completion_tokens: cTokens,
+          total_tokens: tTokens
         });
       }
     }
@@ -160,6 +178,16 @@ export class E2EGraphBuilder {
     // 取得與目前步驟相關的 logs
     const stepLogs = (state.logs || []).filter(l => l.step_idx === idx);
 
+    let stepPromptTokens = 0;
+    let stepCompletionTokens = 0;
+    let stepTotalTokens = 0;
+
+    for (const log of stepLogs) {
+      stepPromptTokens += log.prompt_tokens ?? 0;
+      stepCompletionTokens += log.completion_tokens ?? 0;
+      stepTotalTokens += log.total_tokens ?? 0;
+    }
+
     // 擷取目前步驟完成時的截圖 Buffer
     let screenshotBuffer: Buffer | undefined;
     try {
@@ -175,6 +203,12 @@ export class E2EGraphBuilder {
     
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
     if (run) {
+      // 累加這一步的 Token 至 TestRun 最上層的總累計欄位
+      run.totalPromptTokens = (run.totalPromptTokens || 0) + stepPromptTokens;
+      run.totalCompletionTokens = (run.totalCompletionTokens || 0) + stepCompletionTokens;
+      run.totalTokens = (run.totalTokens || 0) + stepTotalTokens;
+      await testRunRepo.save(run);
+
       for (let i = 0; i < stepLogs.length; i++) {
         const log = stepLogs[i];
         const entity = new TestLog();
@@ -184,6 +218,9 @@ export class E2EGraphBuilder {
         entity.action = log.action;
         entity.result = log.result;
         entity.aiResponse = log.ai_response;
+        entity.promptTokens = log.prompt_tokens ?? 0;
+        entity.completionTokens = log.completion_tokens ?? 0;
+        entity.totalTokens = log.total_tokens ?? 0;
         
         // 僅在最後一筆 log 附帶截圖，代表該步完成時的畫面 (bytea 二進位)
         if (i === stepLogs.length - 1 && screenshotBuffer) {
@@ -205,7 +242,10 @@ export class E2EGraphBuilder {
               aiResponse: log.ai_response,
               logId: entity.id,
               event: "log",
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              promptTokens: entity.promptTokens,
+              completionTokens: entity.completionTokens,
+              totalTokens: entity.totalTokens
             })
           ]
         );
@@ -247,13 +287,24 @@ export class E2EGraphBuilder {
 
     let final_result = "FAIL";
     let final_reason = "視覺斷言未返回結果";
+    let asserterPromptTokens = 0;
+    let asserterCompletionTokens = 0;
+    let asserterTotalTokens = 0;
 
     try {
       // 呼叫結構化輸出模型
-      const assertion_result = await this.asserter_model.invoke(messages) as AssertionResult;
-      if (assertion_result) {
-        final_result = assertion_result.result;
-        final_reason = assertion_result.reason;
+      const structuredResponse = await this.asserter_model.invoke(messages) as any;
+      if (structuredResponse && structuredResponse.parsed) {
+        final_result = structuredResponse.parsed.result;
+        final_reason = structuredResponse.parsed.reason;
+      }
+      if (structuredResponse && structuredResponse.raw) {
+        const usage = structuredResponse.raw.usage_metadata;
+        if (usage) {
+          asserterPromptTokens = usage.input_tokens ?? 0;
+          asserterCompletionTokens = usage.output_tokens ?? 0;
+          asserterTotalTokens = usage.total_tokens ?? 0;
+        }
       }
     } catch (e: any) {
       final_result = "FAIL";
@@ -265,27 +316,41 @@ export class E2EGraphBuilder {
 
     // 更新 TestRun 狀態
     const testRunRepo = AppDataSource.getRepository(TestRun);
-    await testRunRepo.update(state.run_id, {
-      status: final_result === "PASS" ? "passed" : "failed",
-      finalResult: final_result,
-      finalReason: final_reason,
-      finishedAt: new Date()
-    });
+    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
+    if (run) {
+      run.status = final_result === "PASS" ? "passed" : "failed";
+      run.finalResult = final_result;
+      run.finalReason = final_reason;
+      run.finishedAt = new Date();
+      run.asserterPromptTokens = asserterPromptTokens;
+      run.asserterCompletionTokens = asserterCompletionTokens;
+      run.asserterTotalTokens = asserterTotalTokens;
+      run.totalPromptTokens = (run.totalPromptTokens || 0) + asserterPromptTokens;
+      run.totalCompletionTokens = (run.totalCompletionTokens || 0) + asserterCompletionTokens;
+      run.totalTokens = (run.totalTokens || 0) + asserterTotalTokens;
+      await testRunRepo.save(run);
 
-    // 發送任務結束通知
-    await testRunRepo.query(
-      `SELECT pg_notify('test_run_logs', $1)`,
-      [
-        JSON.stringify({
-          runId: state.run_id,
-          status: final_result === "PASS" ? "passed" : "failed",
-          finalResult: final_result,
-          finalReason: final_reason,
-          event: "completed",
-          timestamp: new Date().toISOString()
-        })
-      ]
-    );
+      // 發送任務結束通知
+      await testRunRepo.query(
+        `SELECT pg_notify('test_run_logs', $1)`,
+        [
+          JSON.stringify({
+            runId: state.run_id,
+            status: run.status,
+            finalResult: final_result,
+            finalReason: final_reason,
+            event: "completed",
+            timestamp: new Date().toISOString(),
+            asserterPromptTokens: run.asserterPromptTokens,
+            asserterCompletionTokens: run.asserterCompletionTokens,
+            asserterTotalTokens: run.asserterTotalTokens,
+            totalPromptTokens: run.totalPromptTokens,
+            totalCompletionTokens: run.totalCompletionTokens,
+            totalTokens: run.totalTokens
+          })
+        ]
+      );
+    }
 
     return {
       final_result,
@@ -337,6 +402,12 @@ export class E2EGraphBuilder {
     }
     await testRunRepo.update(state.run_id, updatePayload);
 
+    // 取得最新總 tokens 以便廣播
+    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
+    const totalPromptTokens = run ? run.totalPromptTokens : 0;
+    const totalCompletionTokens = run ? run.totalCompletionTokens : 0;
+    const totalTokens = run ? run.totalTokens : 0;
+
     // 發送任務結束通知
     await testRunRepo.query(
       `SELECT pg_notify('test_run_logs', $1)`,
@@ -347,7 +418,10 @@ export class E2EGraphBuilder {
           finalResult: merged_result,
           finalReason: updatePayload.finalReason,
           event: "completed",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          totalPromptTokens,
+          totalCompletionTokens,
+          totalTokens
         })
       ]
     );

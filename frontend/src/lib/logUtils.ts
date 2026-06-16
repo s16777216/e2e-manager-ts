@@ -5,6 +5,9 @@ export interface GroupedStep {
   stepDescription: string;
   logs: TestLog[];
   screenshotUrl?: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }
 
 /**
@@ -22,11 +25,18 @@ export function groupLogsByStep(logs: TestLog[]): GroupedStep[] {
         stepIdx,
         stepDescription,
         logs: [],
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
       });
     }
 
     const group = groupsMap.get(stepIdx)!;
     group.logs.push(log);
+
+    group.promptTokens += log.promptTokens ?? 0;
+    group.completionTokens += log.completionTokens ?? 0;
+    group.totalTokens += log.totalTokens ?? 0;
 
     if (log.screenshotUrl) {
       group.screenshotUrl = log.screenshotUrl;

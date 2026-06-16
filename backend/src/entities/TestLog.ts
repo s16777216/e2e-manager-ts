@@ -24,6 +24,15 @@ export class TestLog {
   @Column({ type: "bytea", nullable: true, select: false })
   screenshotData?: Buffer;
 
+  @Column("integer", { default: 0 })
+  promptTokens!: number;
+
+  @Column("integer", { default: 0 })
+  completionTokens!: number;
+
+  @Column("integer", { default: 0 })
+  totalTokens!: number;
+
   @ManyToOne(() => TestRun, run => run.logs, { onDelete: "CASCADE" })
   run!: any;
 

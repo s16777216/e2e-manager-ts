@@ -26,6 +26,24 @@ export class TestRun {
   @Column({ type: "bytea", nullable: true })
   screenshotFailData?: Buffer;
 
+  @Column("integer", { default: 0 })
+  asserterPromptTokens!: number;
+
+  @Column("integer", { default: 0 })
+  asserterCompletionTokens!: number;
+
+  @Column("integer", { default: 0 })
+  asserterTotalTokens!: number;
+
+  @Column("integer", { default: 0 })
+  totalPromptTokens!: number;
+
+  @Column("integer", { default: 0 })
+  totalCompletionTokens!: number;
+
+  @Column("integer", { default: 0 })
+  totalTokens!: number;
+
   @ManyToOne(() => Testcase, testcase => testcase.runs, { onDelete: "CASCADE" })
   testcase!: any;
 
