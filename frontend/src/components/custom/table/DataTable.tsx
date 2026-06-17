@@ -23,8 +23,8 @@ import {
 import { DataTablePagination } from "./Pagination";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { SearchIcon } from "@/components/icon/searchc";
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -51,12 +51,16 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  
+
   // 支援受控與非受控狀態下的 globalFilter
   const [internalGlobalFilter, setInternalGlobalFilter] = useState<string>("");
   const isControlled = controlledGlobalFilter !== undefined;
-  const globalFilter = isControlled ? controlledGlobalFilter : internalGlobalFilter;
-  const setGlobalFilter = isControlled ? controlledOnGlobalFilterChange : setInternalGlobalFilter;
+  const globalFilter = isControlled
+    ? controlledGlobalFilter
+    : internalGlobalFilter;
+  const setGlobalFilter = isControlled
+    ? controlledOnGlobalFilterChange
+    : setInternalGlobalFilter;
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -82,7 +86,10 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center py-4 justify-between w-full">
           {showSearch ? (
             <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 h-4 w-4" />
+              <SearchIcon
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+              />
               <Input
                 type="text"
                 value={globalFilter}
@@ -125,7 +132,11 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                   onDoubleClick={() => onRowDbClick?.(row.original)}
                   onClick={() => onRowClick?.(row.original)}
-                  className={onRowClick ? "cursor-pointer hover:bg-zinc-900/20 transition-colors" : ""}
+                  className={
+                    onRowClick
+                      ? "cursor-pointer hover:bg-zinc-900/20 transition-colors"
+                      : ""
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="px-6 py-4">
