@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Task, Project } from "../types/api";
-import { Clock, CheckCircle, XCircle, Loader2, Filter } from "lucide-react";
+import { Clock, Loader2, Filter } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { DataTable } from "../components/custom/table/DataTable";
+import { columns } from "../table-columns/History";
 
 interface BreadcrumbItemType {
   label: string;
@@ -153,93 +155,14 @@ export default function HistoryView() {
 
       {/* 歷史任務表格 */}
       <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col">
-        <div className="border border-zinc-850 bg-zinc-900/30 backdrop-blur-md rounded-2xl overflow-hidden shadow-2xl">
-          {filteredTasks.length === 0 ? (
-            <div className="text-center py-20 text-sm text-zinc-500 italic">
-              找不到符合篩選條件的歷史紀錄。
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-zinc-300">
-                <thead>
-                  <tr className="border-b border-zinc-850 bg-zinc-950/40 text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                    <th className="px-6 py-4">任務編號</th>
-                    <th className="px-6 py-4">所屬專案</th>
-                    <th className="px-6 py-4">範圍</th>
-                    <th className="px-6 py-4">進度 (完成 / 總數)</th>
-                    <th className="px-6 py-4">建立時間</th>
-                    <th className="px-6 py-4">Token 消耗</th>
-                    <th className="px-6 py-4">結果</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-850/50 text-sm">
-                  {filteredTasks.map((t) => {
-                    const taskShortId = t.id.substring(0, 8);
-                    const scopeLabel =
-                      t.scope === "project"
-                        ? "專案"
-                        : t.scope === "group"
-                          ? "群組"
-                          : "單一案例";
-
-                    const renderResultBadge = () => {
-                      if (t.status !== "done") {
-                        return (
-                          <span className="flex items-center gap-1 text-[10px] text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium w-max">
-                            <Loader2
-                              size={10}
-                              className="animate-spin text-emerald-500"
-                            />{" "}
-                            執行中
-                          </span>
-                        );
-                      }
-                      return t.finalResult === "PASS" ? (
-                        <CheckCircle size={16} className="text-emerald-400" />
-                      ) : (
-                        <XCircle size={16} className="text-red-400" />
-                      );
-                    };
-
-                    return (
-                      <tr
-                        key={t.id}
-                        onClick={() =>
-                          navigate(
-                            `/project/${t.projectId || "unknown"}/tasks/${t.id}`,
-                          )
-                        }
-                        className="cursor-pointer hover:bg-zinc-900/20 transition-colors text-zinc-300 hover:text-zinc-100"
-                      >
-                        <td className="px-6 py-4 font-mono text-zinc-200">
-                          #{taskShortId}
-                        </td>
-                        <td className="px-6 py-4 font-bold text-zinc-200">
-                          {t.projectName || "未知專案"}
-                        </td>
-                        <td className="px-6 py-4">{scopeLabel}</td>
-                        <td className="px-6 py-4">
-                          <span className="font-mono text-xs">
-                            {t.doneCount} / {t.totalCount}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-xs font-mono text-zinc-400">
-                          {new Date(t.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 font-mono text-xs text-indigo-400 font-bold">
-                          {t.totalTokens !== undefined && t.totalTokens > 0
-                            ? `${t.totalTokens.toLocaleString()}`
-                            : "-"}
-                        </td>
-                        <td className="px-6 py-4">{renderResultBadge()}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <DataTable
+          columns={columns}
+          data={filteredTasks}
+          onRowDbClick={(row) =>
+            navigate(`/project/${row.projectId || "unknown"}/tasks/${row.id}`)
+          }
+          showSearch={false}
+        />
       </div>
     </div>
   );

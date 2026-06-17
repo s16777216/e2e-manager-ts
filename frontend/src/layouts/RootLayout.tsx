@@ -46,7 +46,7 @@ export default function RootLayout() {
 
           {/* 內容獨立渲染區 */}
           <ScrollArea className="flex-1 w-full min-h-0 max-h-[calc(100vh-80px)]">
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col">
               <Outlet context={{ setBreadcrumbs }} />
             </div>
           </ScrollArea>

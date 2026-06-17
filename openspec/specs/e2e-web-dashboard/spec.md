@@ -36,16 +36,16 @@ TBD - created by archiving change setup-monorepo-and-frontend. Update Purpose af
 - **THEN** 前端在上方即時渲染視覺斷言報告，除了展示結果與原因外，也必須展示視覺斷言花費的 Token 與整次測試執行所花費的總 Token 數量
 
 ### Requirement: Project List Table View
-系統 MUST 在首頁的專案入口提供表格（Table）形式的專案列表，橫向展示多維度屬性對照。表格欄位 MUST 包含專案名稱（附帶連結與圖示）、描述、群組數量、測試案例數量、最後執行時間與操作動作。表格 MUST 支援搜尋與排序。
+系統 MUST 在首頁的專案入口提供表格（Table）形式的專案列表，以 shadcn DataTable 組件呈現（使用 `@tanstack/react-table` + `components/ui/table.tsx`）。表格欄位 MUST 包含專案名稱（附帶圖示）、描述、群組數量、測試案例數量、最後執行時間與建立時間。視覺風格 MUST 使用 shadcn 預設主題，不覆蓋 zinc 色號。排序功能 MUST 由 TanStack Table 的 `getSortedRowModel()` 提供，移除手寫排序邏輯；搜尋過濾功能 MUST 由 TanStack Table 的 `getFilteredRowModel()` 配合 globalFilter 提供，移除手寫 `Array.filter()` 邏輯。
 
 #### Scenario: Display and search projects table
 - **WHEN** 使用者進入專案首頁，且輸入搜尋關鍵字或點擊欄位標頭進行排序時
-- **THEN** 前端以表格形式載入所有專案資訊，並即時依據關鍵字進行過濾或依據所選欄位變更排列順序，點擊進入可正確導向專案詳細頁面
+- **THEN** 前端以 shadcn DataTable 形式載入所有專案資訊，TanStack Table 即時依關鍵字過濾或依所選欄位排序資料列，點擊 Row 可正確導向專案詳細頁面
 
 ### Requirement: TestCase Run History Table View
-系統 MUST 在測試案例的歷史紀錄中，以表格（Table）形式展示過往所有的執行任務。表格欄位 MUST 包含執行編號（帶跳轉連結）、狀態（Badge）、啟動時間、執行耗時、Token 消耗（顯示該次 Run 總計消耗的 Token 數量，若無數據則顯示 0）與最終審查報告。
+系統 MUST 在測試案例的歷史紀錄中，以 shadcn DataTable 組件呈現過往所有執行任務（使用 `@tanstack/react-table` + `components/ui/table.tsx`）。表格欄位 MUST 包含執行編號、狀態（Badge）、啟動時間、執行耗時與最終審查報告摘要。視覺風格 MUST 使用 shadcn 預設主題，不覆蓋 zinc 色號。
 
-#### Scenario: View and navigate run history table with token metrics
+#### Scenario: View and navigate run history table
 - **WHEN** 使用者在測試案例詳情頁點選進入歷史紀錄分頁，且該測試案例存在歷史執行紀錄時
-- **THEN** 前端以表格形式展示所有執行紀錄，表格中須包含「Token 消耗」欄位並正確顯示其總量，點擊特定編號的 Row 會正確 navigate 導航至 `/project/:projectId/run/:runId`
+- **THEN** 前端以 shadcn DataTable 形式依時間降冪排列展示所有執行紀錄，點擊特定 Row 會正確 navigate 導航至 `/project/:projectId/run/:runId`
 
