@@ -1,29 +1,38 @@
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface NewProjectDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreateProject: (name: string) => Promise<void>
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreateProject: (name: string) => Promise<void>;
 }
 
-export function NewProjectDialog({ open, onOpenChange, onCreateProject }: NewProjectDialogProps) {
-  const [name, setName] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function NewProjectDialog({
+  open,
+  onOpenChange,
+  onCreateProject,
+}: NewProjectDialogProps) {
+  const [name, setName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!name.trim()) return
-    setIsSubmitting(true)
+    if (!name.trim()) return;
+    setIsSubmitting(true);
     try {
-      await onCreateProject(name)
-      setName("")
-      onOpenChange(false)
+      await onCreateProject(name);
+      setName("");
+      onOpenChange(false);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +42,12 @@ export function NewProjectDialog({ open, onOpenChange, onCreateProject }: NewPro
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="newProjectName" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">專案名稱</label>
+            <label
+              htmlFor="newProjectName"
+              className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
+            >
+              專案名稱
+            </label>
             <Input
               id="newProjectName"
               value={name}
@@ -53,5 +67,5 @@ export function NewProjectDialog({ open, onOpenChange, onCreateProject }: NewPro
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

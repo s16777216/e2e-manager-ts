@@ -17,7 +17,7 @@ export default function SidebarContainer(props: SidebarContainerProps) {
   const { header, children, footer } = props;
   return (
     <Sidebar variant="inset">
-      <SidebarHeader>{header}</SidebarHeader>
+      <SidebarHeader className="p-0">{header}</SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>{children}</SidebarMenu>
