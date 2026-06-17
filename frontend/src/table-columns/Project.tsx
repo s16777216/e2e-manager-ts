@@ -18,7 +18,11 @@ export const columns: ColumnDef<Project>[] = [
   {
     accessorKey: "testcaseCount",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="測試案例數" />
+      <DataTableColumnHeader
+        column={column}
+        title="測試案例數"
+        className="flex justify-center"
+      />
     ),
     cell: ({ row }) => {
       const testcaseCount = row.getValue<number>("testcaseCount");
@@ -26,23 +30,13 @@ export const columns: ColumnDef<Project>[] = [
     },
   },
   {
-    accessorKey: "latestRunTime",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="最後執行時間" />
-    ),
-    cell: ({ row }) => {
-      const runTime = row.getValue<string | undefined>("latestRunTime");
-      return (
-        <div className="text-center">
-          {runTime ? new Date(runTime).toLocaleString() : "-"}
-        </div>
-      );
-    },
-  },
-  {
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="建立時間" />
+      <DataTableColumnHeader
+        column={column}
+        title="建立時間"
+        className="flex justify-center"
+      />
     ),
     cell: ({ row }) => {
       const createdAt = row.getValue<string>("createdAt");
