@@ -1,11 +1,14 @@
+export type CookiesData = Record<string, Record<string, unknown>>;
+export type LocalStorageData = Record<string, unknown>;
+
 export interface Project {
   id: string;
   name: string;
   description?: string;
   createdAt: string;
   groups?: TestGroup[];
-  initCookies?: any;
-  initLocalStorage?: any;
+  initCookies?: CookiesData | null;
+  initLocalStorage?: LocalStorageData | null;
 }
 
 export interface TestGroup {
@@ -15,8 +18,8 @@ export interface TestGroup {
   parentId?: string | null;
   children?: TestGroup[];
   testcases?: Testcase[];
-  initCookies?: any;
-  initLocalStorage?: any;
+  initCookies?: CookiesData | null;
+  initLocalStorage?: LocalStorageData | null;
 }
 
 export interface Testcase {
@@ -27,8 +30,8 @@ export interface Testcase {
   createdAt: string;
   group?: TestGroup;
   runs?: TestRun[];
-  initCookies?: any;
-  initLocalStorage?: any;
+  initCookies?: CookiesData | null;
+  initLocalStorage?: LocalStorageData | null;
 }
 
 export interface TestRun {
@@ -86,4 +89,3 @@ export interface Task {
   projectName?: string;
   totalTokens?: number;
 }
-

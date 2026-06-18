@@ -132,7 +132,7 @@ export class TaskQueue {
     }
 
     // 合併 Cookie 與 LocalStorage
-    let mergedCookies: any[] = [];
+    let mergedCookies: any = {};
     let mergedLocalStorage: any = {};
 
     if (project) {
@@ -156,9 +156,38 @@ export class TaskQueue {
 
       // 注入 Cookie 與 LocalStorage
       if (browserManager.context) {
-        if (mergedCookies && mergedCookies.length > 0) {
-          console.log(`[Worker] 正在注入 ${mergedCookies.length} 個 Cookies`);
-          await browserManager.context.addCookies(mergedCookies);
+        if (mergedCookies && Object.keys(mergedCookies).length > 0) {
+          const playwrightCookies: any[] = [];
+          for (const [domainAndPath, cookiesMap] of Object.entries(mergedCookies)) {
+            if (!cookiesMap || typeof cookiesMap !== "object") continue;
+
+            let cleanKey = domainAndPath.replace(/^https?:\/\//i, "");
+            let domain = cleanKey;
+            let path = "/";
+            const firstSlashIndex = cleanKey.indexOf("/");
+            
+            if (firstSlashIndex !== -1) {
+              domain = cleanKey.substring(0, firstSlashIndex);
+              path = cleanKey.substring(firstSlashIndex);
+              if (!path.startsWith("/")) {
+                path = "/" + path;
+              }
+            }
+
+            for (const [name, value] of Object.entries(cookiesMap)) {
+              playwrightCookies.push({
+                name,
+                value: String(value),
+                domain,
+                path,
+              });
+            }
+          }
+
+          if (playwrightCookies.length > 0) {
+            console.log(`[Worker] 正在注入 ${playwrightCookies.length} 個 Cookies`);
+            await browserManager.context.addCookies(playwrightCookies);
+          }
         }
         if (mergedLocalStorage && Object.keys(mergedLocalStorage).length > 0) {
           console.log(`[Worker] 正在注入 LocalStorage`);

@@ -1,12 +1,7 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BaseDialog } from "./BaseDialog";
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -34,38 +29,53 @@ export function NewProjectDialog({
     }
   };
 
+  const dialogFooter = (
+    <div className="flex justify-end gap-2 w-full">
+      <Button
+        variant="outline"
+        onClick={() => onOpenChange(false)}
+        className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
+      >
+        取消
+      </Button>
+      <Button
+        onClick={handleSubmit}
+        disabled={isSubmitting}
+        className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold"
+      >
+        {isSubmitting ? "建立中..." : "確定建立"}
+      </Button>
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>建立新專案</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="newProjectName"
-              className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
-            >
-              專案名稱
-            </label>
-            <Input
-              id="newProjectName"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例如: 公司後台測試"
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            />
-          </div>
+    <BaseDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="建立新專案"
+      footer={dialogFooter}
+      className="max-w-[425px]"
+      height="auto"
+    >
+      <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="newProjectName"
+            className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
+          >
+            專案名稱
+          </label>
+          <Input
+            id="newProjectName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="例如: 公司後台測試"
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            className="bg-zinc-950 border-zinc-800 text-zinc-100"
+          />
         </div>
-        <div className="flex justify-end gap-2 pt-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "建立中..." : "確定建立"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </BaseDialog>
   );
 }
+

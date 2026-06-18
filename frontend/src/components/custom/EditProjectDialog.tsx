@@ -1,24 +1,22 @@
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Trash2, AlertTriangle, ArrowLeft } from "lucide-react";
-import type { Project } from "@/types/api";
+import type { Project, CookiesData, LocalStorageData } from "@/types/api";
 import { JsonEditorAccordion } from "./JsonEditorAccordion";
+import { BaseDialog } from "./BaseDialog";
 
 interface EditProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  onUpdate: (name: string, description?: string, initCookies?: any, initLocalStorage?: any) => Promise<unknown>;
+  onUpdate: (
+    name: string,
+    description?: string,
+    initCookies?: CookiesData | null,
+    initLocalStorage?: LocalStorageData | null,
+  ) => Promise<unknown>;
   onDelete: () => Promise<boolean>;
 }
 
@@ -34,8 +32,10 @@ export function EditProjectDialog({
   const [isSaving, setIsSaving] = useState(false);
 
   // 進階環境設定狀態
-  const [initCookies, setInitCookies] = useState(project.initCookies);
-  const [initLocalStorage, setInitLocalStorage] = useState(project.initLocalStorage);
+  const [initCookies, setInitCookies] = useState<CookiesData | null>(project.initCookies || null);
+  const [initLocalStorage, setInitLocalStorage] = useState<LocalStorageData | null>(
+    project.initLocalStorage || null,
+  );
   const [isJsonValid, setIsJsonValid] = useState(true);
 
   // 刪除相關狀態
@@ -47,7 +47,12 @@ export function EditProjectDialog({
     if (!name.trim() || !isJsonValid) return;
     setIsSaving(true);
     try {
-      await onUpdate(name.trim(), description.trim(), initCookies, initLocalStorage);
+      await onUpdate(
+        name.trim(),
+        description.trim(),
+        initCookies,
+        initLocalStorage,
+      );
       onOpenChange(false);
     } finally {
       setIsSaving(false);
@@ -67,157 +72,157 @@ export function EditProjectDialog({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-zinc-900 border-zinc-800 text-zinc-100 animate-fadeIn">
-        {!showDeleteConfirm ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>編輯專案資訊</DialogTitle>
-              <DialogDescription className="text-zinc-400 text-xs">
-                修改專案的名稱與描述資訊。
-              </DialogDescription>
-            </DialogHeader>
+  // 根據狀態組合不同的 Header & Body & Footer
+  const dialogTitle = showDeleteConfirm ? (
+    <div className="flex items-center gap-2 text-rose-500 mb-1">
+      <AlertTriangle size={20} />
+      <span>危險區域：刪除專案</span>
+    </div>
+  ) : (
+    "編輯專案資訊"
+  );
 
-            <div className="flex flex-col gap-4 my-2">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                  專案名稱 <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-zinc-950 border-zinc-800 text-zinc-100"
-                  placeholder="請輸入專案名稱"
-                />
-              </div>
+  const dialogDescription = showDeleteConfirm
+    ? "此操作無法復原！刪除專案將永久刪除該專案下的所有群組、測試案例及歷史執行紀錄。"
+    : "修改專案的名稱與描述資訊。";
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                  專案描述
-                </label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="bg-zinc-950 border-zinc-800 text-zinc-100 resize-none"
-                  placeholder="請輸入專案描述"
-                  rows={3}
-                />
-              </div>
+  const dialogFooter = showDeleteConfirm ? (
+    <div className="flex items-center justify-between w-full">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setShowDeleteConfirm(false)}
+        className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 flex items-center gap-1.5"
+        disabled={isDeleting}
+      >
+        <ArrowLeft size={14} />
+        返回編輯
+      </Button>
 
-              <JsonEditorAccordion
-                initCookies={project.initCookies}
-                initLocalStorage={project.initLocalStorage}
-                onChange={({ cookies, localStorage, isValid }) => {
-                  setInitCookies(cookies);
-                  setInitLocalStorage(localStorage);
-                  setIsJsonValid(isValid);
-                }}
-              />
-            </div>
-
-            <DialogFooter className="border-t border-zinc-850 pt-3 flex items-center justify-between gap-2 sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 flex items-center gap-1.5 self-start"
-              >
-                <Trash2 size={14} />
-                刪除專案
-              </Button>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
-                >
-                  取消
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isSaving || !name.trim() || !isJsonValid}
-                  className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold"
-                >
-                  {isSaving ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    "儲存修改"
-                  )}
-                </Button>
-              </div>
-            </DialogFooter>
-          </>
+      <Button
+        type="button"
+        onClick={handleDelete}
+        disabled={isDeleting || confirmName !== project.name}
+        className="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5 border-none shadow-lg shadow-rose-900/20 disabled:bg-rose-950 disabled:text-rose-800 disabled:opacity-40"
+      >
+        {isDeleting ? (
+          <Loader2 size={14} className="animate-spin" />
         ) : (
           <>
-            <DialogHeader>
-              <div className="flex items-center gap-2 text-rose-500 mb-1">
-                <AlertTriangle size={20} />
-                <DialogTitle className="text-rose-500">
-                  危險區域：刪除專案
-                </DialogTitle>
-              </div>
-              <DialogDescription className="text-zinc-400 text-xs">
-                此操作無法復原！刪除專案將永久刪除該專案下的所有群組、測試案例及歷史執行紀錄。
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-4 my-2 border border-rose-900/30 bg-rose-950/10 p-4 rounded-xl">
-              <p className="text-xs text-rose-400 font-medium">
-                若要確定刪除，請在下方輸入此專案的完整名稱以進行確認：
-                <br />
-                <span className="font-mono font-extrabold select-all text-zinc-100 block mt-2 text-center text-sm tracking-wide bg-zinc-950 py-1.5 px-3 rounded border border-zinc-800">
-                  {project.name}
-                </span>
-              </p>
-
-              <div className="flex flex-col gap-1.5">
-                <Input
-                  type="text"
-                  value={confirmName}
-                  onChange={(e) => setConfirmName(e.target.value)}
-                  className="bg-zinc-950 border-rose-900/50 focus-visible:ring-rose-500 text-zinc-100 font-mono text-center"
-                  placeholder="請在此輸入專案名稱"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <DialogFooter className="border-t border-zinc-850 pt-3 flex items-center justify-between gap-2 sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 flex items-center gap-1.5"
-                disabled={isDeleting}
-              >
-                <ArrowLeft size={14} />
-                返回編輯
-              </Button>
-
-              <Button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting || confirmName !== project.name}
-                className="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5 border-none shadow-lg shadow-rose-900/20 disabled:bg-rose-950 disabled:text-rose-800 disabled:opacity-40"
-              >
-                {isDeleting ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <>
-                    <Trash2 size={14} />
-                    確定永久刪除
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+            <Trash2 size={14} />
+            確定永久刪除
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </Button>
+    </div>
+  ) : (
+    <div className="flex items-center justify-between w-full">
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={() => setShowDeleteConfirm(true)}
+        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 flex items-center gap-1.5 self-start"
+      >
+        <Trash2 size={14} />
+        刪除專案
+      </Button>
+
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
+        >
+          取消
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || !name.trim() || !isJsonValid}
+          className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold"
+        >
+          {isSaving ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            "儲存修改"
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <BaseDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={dialogTitle}
+      description={dialogDescription}
+      footer={dialogFooter}
+      className="max-w-md"
+      height="400px"
+      maxHeight="90vh"
+    >
+      {!showDeleteConfirm ? (
+        <div className="flex flex-col gap-4 my-2">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+              專案名稱 <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-zinc-950 border-zinc-800 text-zinc-100"
+              placeholder="請輸入專案名稱"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+              專案描述
+            </label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="bg-zinc-950 border-zinc-800 text-zinc-100 resize-none"
+              placeholder="請輸入專案描述"
+              rows={3}
+            />
+          </div>
+
+          <JsonEditorAccordion
+            initCookies={project.initCookies}
+            initLocalStorage={project.initLocalStorage}
+            onChange={({ cookies, localStorage, isValid }) => {
+              setInitCookies(cookies);
+              setInitLocalStorage(localStorage);
+              setIsJsonValid(isValid);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 my-2 border border-rose-900/30 bg-rose-950/10 p-4 rounded-xl">
+          <p className="text-xs text-rose-400 font-medium">
+            若要確定刪除，請在下方輸入此專案的完整名稱以進行確認：
+            <br />
+            <span className="font-mono font-extrabold select-all text-zinc-100 block mt-2 text-center text-sm tracking-wide bg-zinc-950 py-1.5 px-3 rounded border border-zinc-800">
+              {project.name}
+            </span>
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            <Input
+              type="text"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              className="bg-zinc-950 border-rose-900/50 focus-visible:ring-rose-500 text-zinc-100 font-mono text-center"
+              placeholder="請在此輸入專案名稱"
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
+    </BaseDialog>
   );
 }

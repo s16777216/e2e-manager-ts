@@ -1,38 +1,39 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import type { CookiesData, LocalStorageData } from "@/types/api";
 
 interface JsonEditorAccordionProps {
-  initCookies?: unknown;
-  initLocalStorage?: unknown;
+  initCookies?: CookiesData | null;
+  initLocalStorage?: LocalStorageData | null;
   onChange: (data: {
-    cookies: unknown;
-    localStorage: unknown;
+    cookies: CookiesData | null;
+    localStorage: LocalStorageData | null;
     isValid: boolean;
   }) => void;
 }
 
 // Helpers for validation
-function validateCookies(str: string): { parsed: unknown; isValid: boolean; error: string | null } {
+function validateCookies(str: string): { parsed: CookiesData | null; isValid: boolean; error: string | null } {
   const trimmed = str.trim();
   if (trimmed === "") return { parsed: null, isValid: true, error: null };
   try {
     const parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) {
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return {
         parsed: null,
         isValid: false,
-        error: "Cookies 必須為 JSON 陣列格式 (例如: [ { \"name\": \"...\", \"value\": \"...\" } ])",
+        error: "Cookies 必須為 JSON 物件格式 (例如: { \"domain/path\": { \"name\": \"value\" } })",
       };
     }
-    return { parsed, isValid: true, error: null };
+    return { parsed: parsed as CookiesData, isValid: true, error: null };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { parsed: null, isValid: false, error: `JSON 解析失敗: ${msg}` };
   }
 }
 
-function validateLocalStorage(str: string): { parsed: unknown; isValid: boolean; error: string | null } {
+function validateLocalStorage(str: string): { parsed: LocalStorageData | null; isValid: boolean; error: string | null } {
   const trimmed = str.trim();
   if (trimmed === "") return { parsed: null, isValid: true, error: null };
   try {
@@ -44,7 +45,7 @@ function validateLocalStorage(str: string): { parsed: unknown; isValid: boolean;
         error: "LocalStorage 必須為 JSON 物件格式 (例如: { \"key\": \"value\" })",
       };
     }
-    return { parsed, isValid: true, error: null };
+    return { parsed: parsed as LocalStorageData, isValid: true, error: null };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { parsed: null, isValid: false, error: `JSON 解析失敗: ${msg}` };
@@ -108,7 +109,7 @@ export function JsonEditorAccordion({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                初始 Cookies (JSON 陣列)
+                初始 Cookies (JSON 物件)
               </label>
               {cookiesStr.trim() !== "" && (
                 cookiesError ? (
@@ -125,7 +126,7 @@ export function JsonEditorAccordion({
             <Textarea
               value={cookiesStr}
               onChange={(e) => setCookiesStr(e.target.value)}
-              placeholder={`[\n  {\n    "name": "token",\n    "value": "jwt-token-here",\n    "domain": "example.com",\n    "path": "/"\n  }\n]`}
+              placeholder={`{\n  "localhost/": {\n    "token": "jwt-token-here"\n  }\n}`}
               className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y min-h-[100px] placeholder:text-zinc-700 ${
                 cookiesError ? "border-rose-900/50 focus-visible:ring-rose-500" : "border-zinc-850"
               }`}
