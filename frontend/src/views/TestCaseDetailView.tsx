@@ -13,6 +13,8 @@ import {
   XCircle,
   Clock,
   Loader2,
+  AlertTriangle,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,7 @@ import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../components/custom/table/DataTable";
 import { DataTableColumnHeader } from "../components/custom/table/ColumnHeader";
+import { BaseDialog } from "../components/custom/BaseDialog";
 
 interface BreadcrumbItemType {
   label: string;
@@ -77,6 +80,27 @@ export default function TestCaseDetailView() {
 
   // 當前 Active Tab: "steps" | "history"
   const [activeTab, setActiveTab] = useState<"steps" | "history">("steps");
+
+  // 刪除相關狀態
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteTestCase = async () => {
+    if (!testcase || confirmName !== testcase.name || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteTestcase(testcase.id);
+      toast.success("測試案例刪除成功！");
+      setIsDeleteDialogOpen(false);
+      navigate(`/project/${projectId}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("刪除測試案例失敗：" + msg);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // 當 testCaseId 變更時，在 render 階段重設編輯模式與分頁狀態，避免 useEffect 中同步 setState 造成 cascading renders
   const [prevTestCaseId, setPrevTestCaseId] = useState(testCaseId);
@@ -482,6 +506,22 @@ export default function TestCaseDetailView() {
                     }}
                   />
 
+                  {/* 刪除測試案例入口 */}
+                  <div className="border-t border-zinc-900/60 pt-5 mt-2 flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-rose-500/80 uppercase tracking-wider">
+                      危險區域
+                    </label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 flex items-center gap-1.5 self-start"
+                    >
+                      <Trash2 size={14} />
+                      刪除測試案例
+                    </Button>
+                  </div>
+
                   {/* 表單底操作 */}
                   <div className="flex justify-end gap-2 border-t border-zinc-850 pt-4 mt-2">
                     <Button
@@ -562,6 +602,78 @@ export default function TestCaseDetailView() {
           )}
         </div>
       </ScrollArea>
+
+      {/* 刪除測試案例二次確認彈窗 */}
+      <BaseDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) setConfirmName("");
+        }}
+        title={
+          <div className="flex items-center gap-2 text-rose-500">
+            <AlertTriangle size={18} />
+            <span>危險區域：刪除測試案例</span>
+          </div>
+        }
+        description="此操作無法復原！刪除測試案例將永久刪除該測試案例及所有的歷史執行紀錄與設定。"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setConfirmName("");
+              }}
+              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 flex items-center gap-1.5"
+              disabled={isDeleting}
+            >
+              <ArrowLeft size={14} />
+              返回編輯
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleDeleteTestCase}
+              disabled={isDeleting || confirmName !== testcase.name}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5 border-none shadow-lg shadow-rose-900/20 disabled:bg-rose-950 disabled:text-rose-800 disabled:opacity-40"
+            >
+              {isDeleting ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <>
+                  <Trash2 size={14} />
+                  確定永久刪除
+                </>
+              )}
+            </Button>
+          </div>
+        }
+        className="max-w-[425px]"
+        height="auto"
+      >
+        <div className="flex flex-col gap-4 py-2">
+          <p className="text-xs text-rose-400 font-medium">
+            若要確定刪除，請在下方輸入此測試案例的完整名稱以進行確認：
+            <br />
+            <span className="font-mono font-extrabold select-all text-zinc-100 block mt-2 text-center text-sm tracking-wide bg-zinc-950 py-1.5 px-3 rounded border border-zinc-800">
+              {testcase.name}
+            </span>
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            <Input
+              type="text"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              className="bg-zinc-950 border-rose-900/50 focus-visible:ring-rose-500 text-zinc-100 font-mono text-center"
+              placeholder="請在此輸入測試案例名稱"
+              autoFocus
+            />
+          </div>
+        </div>
+      </BaseDialog>
     </div>
   );
 }

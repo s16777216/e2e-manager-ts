@@ -25,19 +25,29 @@ export function useProjectData() {
     }
   }
 
-  const handleCreateProject = async (name: string) => {
-    if (!name.trim()) return null
+  const handleCreateProject = async (
+    name: string,
+    description?: string,
+    initCookies?: unknown,
+    initLocalStorage?: unknown,
+  ) => {
+    if (!name.trim()) return null;
     try {
-      const newProj = await api.createProject(name.trim())
-      setProjects((prev) => [...prev, newProj])
-      toast.success("專案建立成功！")
-      return newProj
+      const newProj = await api.createProject(
+        name.trim(),
+        description?.trim(),
+        initCookies,
+        initLocalStorage,
+      );
+      setProjects((prev) => [...prev, newProj]);
+      toast.success("專案建立成功！");
+      return newProj;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      toast.error("建立專案失敗：" + msg)
-      return null
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("建立專案失敗：" + msg);
+      return null;
     }
-  }
+  };
 
   const handleUpdateProject = async (
     projectId: string,

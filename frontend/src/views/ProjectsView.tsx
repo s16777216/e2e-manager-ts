@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
-import { NewProjectDialog } from "../components/custom/NewProjectDialog";
 import { Button } from "@/components/ui/button";
 import { columns } from "../table-columns/Project";
 import { DataTable } from "../components/custom/table/DataTable";
@@ -31,8 +30,7 @@ export default function ProjectsView() {
     };
   }, [setBreadcrumbs]);
 
-  const { projects, handleCreateProject } = useProjectData();
-  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const { projects } = useProjectData();
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 p-4 select-none">
@@ -58,7 +56,7 @@ export default function ProjectsView() {
           topbarContent={
             <div className="flex justify-end w-full">
               <Button
-                onClick={() => setShowNewProjectModal(true)}
+                onClick={() => navigate("/project/new")}
                 className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 transition-all font-semibold flex items-center gap-2 px-5 py-5 shadow-lg shadow-zinc-100/10"
               >
                 <PlusIcon size={16} /> 建立新專案
@@ -67,18 +65,6 @@ export default function ProjectsView() {
           }
         />
       </div>
-
-      {/* 新專案彈窗 */}
-      <NewProjectDialog
-        open={showNewProjectModal}
-        onOpenChange={setShowNewProjectModal}
-        onCreateProject={async (name) => {
-          const p = await handleCreateProject(name);
-          if (p) {
-            navigate(`/project/${p.id}`);
-          }
-        }}
-      />
     </div>
   );
 }

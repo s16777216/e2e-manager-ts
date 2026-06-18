@@ -35,7 +35,6 @@ export function useGroupData(projectId: string | undefined) {
   }
 
   const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm("確定要刪除此群組嗎？這將會刪除其下的測試案例！")) return false
     try {
       await api.deleteGroup(groupId)
       if (projectId) {

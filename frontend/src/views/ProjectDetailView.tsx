@@ -5,15 +5,15 @@ import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
 import { NewSubgroupDialog } from "../components/custom/NewSubgroupDialog"
 import { api } from "../lib/api"
-import { Plus, Sparkles, Trash2, Loader2, Play, Edit2 } from "lucide-react"
+import { Plus, Sparkles, Trash2, Loader2, Play, Edit2, AlertTriangle, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { EditProjectDialog } from "../components/custom/EditProjectDialog"
 import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion"
+import { BaseDialog } from "../components/custom/BaseDialog"
 
 import type { TestGroup, Testcase } from "../types/api"
 
@@ -34,8 +34,7 @@ export default function ProjectDetailView() {
   const { projects, handleUpdateProject, handleDeleteProject } = useProjectData()
   const activeProject = projects.find((p) => p.id === projectId)
 
-  // 編輯專案 Dialog 狀態
-  const [showEditProjectModal, setShowEditProjectModal] = useState(false)
+
 
 
 
@@ -125,6 +124,56 @@ export default function ProjectDetailView() {
   const [tcExpected, setTcExpected] = useState("")
   const [targetGroupId, setTargetGroupId] = useState("")
   const [isSavingTestCase, setIsSavingTestCase] = useState(false)
+
+  // 刪除群組 Dialog 狀態
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null)
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false)
+
+  // 刪除測試案例 Dialog 狀態
+  const [deleteTestCaseId, setDeleteTestCaseId] = useState<string | null>(null)
+  const [deleteTestCaseName, setDeleteTestCaseName] = useState("")
+  const [isDeletingTestCase, setIsDeletingTestCase] = useState(false)
+
+  const confirmDeleteGroup = async () => {
+    if (!deleteGroupId) return
+    setIsDeletingGroup(true)
+    try {
+      await handleDeleteGroup(deleteGroupId)
+      setDeleteGroupId(null)
+    } finally {
+      setIsDeletingGroup(false)
+    }
+  }
+
+  const confirmDeleteTestCase = async () => {
+    if (!deleteTestCaseId) return
+    setIsDeletingTestCase(true)
+    try {
+      await api.deleteTestcase(deleteTestCaseId)
+      toast.success("測試案例刪除成功！")
+      setDeleteTestCaseId(null)
+      setDeleteTestCaseName("")
+      setRefreshTrigger(prev => prev + 1)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("刪除測試案例失敗：" + msg)
+    } finally {
+      setIsDeletingTestCase(false)
+    }
+  }
+
+  const triggerDeleteTestCase = (tcId: string) => {
+    let name = ""
+    for (const gid of Object.keys(testcasesMap)) {
+      const found = testcasesMap[gid]?.find(tc => tc.id === tcId)
+      if (found) {
+        name = found.name
+        break
+      }
+    }
+    setDeleteTestCaseId(tcId)
+    setDeleteTestCaseName(name)
+  }
 
   // 測試案例 Cookie / LocalStorage 狀態
   const [tcInitCookies, setTcInitCookies] = useState<unknown>(null)
@@ -353,8 +402,8 @@ export default function ProjectDetailView() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowEditProjectModal(true)}
-                className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 rounded-lg transition-colors ml-1 shrink-0"
+                onClick={() => navigate(`/project/${activeProject.id}/edit`)}
+                className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-950 rounded-lg transition-colors ml-1 shrink-0"
                 title="編輯專案資訊"
               >
                 <Edit2 size={13} />
@@ -430,7 +479,8 @@ export default function ProjectDetailView() {
                       activeTestCaseId=""
                       onToggleExpand={handleToggleExpand}
                       onAddSubgroup={(parentId) => triggerAddGroup(parentId)}
-                      onDeleteGroup={handleDeleteGroup}
+                      onDeleteGroup={(groupId) => setDeleteGroupId(groupId)}
+                      onDeleteTestcase={triggerDeleteTestCase}
                       onEditGroup={(groupId) => {
                         const g = groups.find((group) => group.id === groupId)
                         if (g) {
@@ -629,24 +679,124 @@ export default function ProjectDetailView() {
         </DialogContent>
       </Dialog>
 
-      {activeProject && (
-        <EditProjectDialog
-          key={`${activeProject.id}-${showEditProjectModal}`}
-          open={showEditProjectModal}
-          onOpenChange={setShowEditProjectModal}
-          project={activeProject}
-          onUpdate={async (name, description, initCookies, initLocalStorage) => {
-            await handleUpdateProject(activeProject.id, name, description, initCookies, initLocalStorage)
-          }}
-          onDelete={async () => {
-            const success = await handleDeleteProject(activeProject.id)
-            if (success) {
-              navigate("/project")
-            }
-            return success
-          }}
-        />
-      )}
+      {/* 刪除群組二次確認彈窗 */}
+      <BaseDialog
+        open={deleteGroupId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteGroupId(null)
+        }}
+        title={
+          <div className="flex items-center gap-2 text-rose-500">
+            <AlertTriangle size={18} />
+            <span>確定要刪除此群組嗎？</span>
+          </div>
+        }
+        description="此操作將會永久刪除此群組，且該群組其下的所有子群組與測試案例也將一併被永久刪除，此操作無法復原！"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setDeleteGroupId(null)}
+              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 flex items-center gap-1.5"
+              disabled={isDeletingGroup}
+            >
+              <ArrowLeft size={14} />
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmDeleteGroup}
+              disabled={isDeletingGroup}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5 border-none shadow-lg shadow-rose-900/20"
+            >
+              {isDeletingGroup ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <>
+                  <Trash2 size={14} />
+                  確定永久刪除
+                </>
+              )}
+            </Button>
+          </div>
+        }
+        className="max-w-[425px]"
+        height="auto"
+      >
+        <div className="py-2">
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            請確認您要刪除此群組，刪除後將無法還原該群組的設定與底下關聯的測試資料。
+          </p>
+        </div>
+      </BaseDialog>
+
+      {/* 刪除測試案例二次確認彈窗 */}
+      <BaseDialog
+        open={deleteTestCaseId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTestCaseId(null)
+            setDeleteTestCaseName("")
+          }
+        }}
+        title={
+          <div className="flex items-center gap-2 text-rose-500">
+            <AlertTriangle size={18} />
+            <span>確定要刪除此測試案例嗎？</span>
+          </div>
+        }
+        description={
+          <span>
+            此操作將會永久刪除測試案例{" "}
+            <strong className="text-zinc-100 font-mono">
+              {deleteTestCaseName}
+            </strong>
+            ，此操作無法復原！
+          </span>
+        }
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setDeleteTestCaseId(null)
+                setDeleteTestCaseName("")
+              }}
+              className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 flex items-center gap-1.5"
+              disabled={isDeletingTestCase}
+            >
+              <ArrowLeft size={14} />
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmDeleteTestCase}
+              disabled={isDeletingTestCase}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center gap-1.5 border-none shadow-lg shadow-rose-900/20"
+            >
+              {isDeletingTestCase ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <>
+                  <Trash2 size={14} />
+                  確定永久刪除
+                </>
+              )}
+            </Button>
+          </div>
+        }
+        className="max-w-[425px]"
+        height="auto"
+      >
+        <div className="py-2">
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            請確認您要刪除此測試案例，刪除後該案例的所有執行紀錄與設定將一併永久抹除。
+          </p>
+        </div>
+      </BaseDialog>
+
     </div>
   )
 }

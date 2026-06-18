@@ -23,6 +23,7 @@ interface GroupTreeNodeProps {
   onDeleteGroup: (groupId: string) => void;
   onEditGroup?: (groupId: string) => void;
   onRunGroup?: (groupId: string) => void;
+  onDeleteTestcase?: (testCaseId: string) => void;
   projectId: string;
 }
 
@@ -36,6 +37,7 @@ export function GroupTreeNode({
   onDeleteGroup,
   onEditGroup,
   onRunGroup,
+  onDeleteTestcase,
   projectId
 }: GroupTreeNodeProps) {
   const navigate = useNavigate()
@@ -153,8 +155,8 @@ export function GroupTreeNode({
             </span>
           </div>
 
-          {/* 操作按鈕 (僅群組有，且在 hover 時才顯示) */}
-          {row.type === "group" && (
+          {/* 操作按鈕 */}
+          {row.type === "group" ? (
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
               {onRunGroup && (
                 <button
@@ -201,6 +203,21 @@ export function GroupTreeNode({
                 <Trash2 size={12} />
               </button>
             </div>
+          ) : (
+            row.type === "testcase" && onDeleteTestcase && (
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
+                <button
+                  title="刪除測試案例"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTestcase(row.id)
+                  }}
+                  className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-colors"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            )
           )}
         </div>
       </td>

@@ -31,10 +31,15 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Project APIs
   getProjects: () => request<Project[]>("/projects"),
-  createProject: (name: string, description?: string) =>
+  createProject: (
+    name: string,
+    description?: string,
+    initCookies?: any,
+    initLocalStorage?: any,
+  ) =>
     request<Project>("/projects", {
       method: "POST",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
     }),
   updateProject: (projectId: string, name: string, description?: string, initCookies?: any, initLocalStorage?: any) =>
     request<Project>(`/projects/${projectId}`, {

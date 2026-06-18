@@ -59,7 +59,6 @@ export function useTestcaseData(groupId: string | undefined) {
   }
 
   const handleDeleteTestcase = async (testcaseId: string) => {
-    if (!confirm("確定要刪除此測試案例嗎？")) return false
     try {
       await api.deleteTestcase(testcaseId)
       if (groupId) {
