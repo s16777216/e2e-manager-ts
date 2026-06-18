@@ -31,7 +31,7 @@ export default function ProjectDetailView() {
   const navigate = useNavigate()
 
   // 專案資訊
-  const { projects, handleUpdateProject, handleDeleteProject } = useProjectData()
+  const { projects } = useProjectData()
   const activeProject = projects.find((p) => p.id === projectId)
 
 

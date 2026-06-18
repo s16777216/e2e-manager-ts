@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import type { CookiesData, LocalStorageData } from "@/types/api";
 
 interface BreadcrumbItem {
   label: string;
@@ -17,7 +18,8 @@ export default function ProjectEditView() {
   const navigate = useNavigate();
   const { projectId } = useParams();
   const { setBreadcrumbs } = useOutletContext<OutletContextType>();
-  const { projects, handleUpdateProject, handleDeleteProject, isLoading } = useProjectData();
+  const { projects, handleUpdateProject, handleDeleteProject, isLoading } =
+    useProjectData();
   const [isSaving, setIsSaving] = useState(false);
 
   const activeProject = projects.find((p) => p.id === projectId);
@@ -43,8 +45,8 @@ export default function ProjectEditView() {
   const handleSubmit = async (
     name: string,
     description: string,
-    initCookies: any,
-    initLocalStorage: any,
+    initCookies: CookiesData | null,
+    initLocalStorage: LocalStorageData | null,
   ) => {
     if (!activeProject) return;
     setIsSaving(true);
@@ -102,18 +104,8 @@ export default function ProjectEditView() {
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8">
-      {/* 頂部 Header */}
-      <div className="max-w-xl w-full mx-auto flex flex-col items-start gap-2 mb-6">
-        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2">
-          <Sparkles size={20} className="text-primary animate-pulse" />
-          編輯專案資訊
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed">
-          修改專案的名稱與描述，或在進階設定中更新 Cookies 與 LocalStorage 的預配置。
-        </p>
-      </div>
-
       <ProjectForm
+        key={activeProject.id}
         initialData={initialFormVal}
         submitLabel="儲存修改"
         isSubmitting={isSaving}

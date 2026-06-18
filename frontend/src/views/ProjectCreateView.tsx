@@ -3,6 +3,8 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
 import { Sparkles } from "lucide-react";
+import Typography from "../components/custom/Typography";
+import type { CookiesData, LocalStorageData } from "@/types/api";
 
 interface BreadcrumbItem {
   label: string;
@@ -36,8 +38,8 @@ export default function ProjectCreateView() {
   const handleSubmit = async (
     name: string,
     description: string,
-    initCookies: any,
-    initLocalStorage: any,
+    initCookies: CookiesData | null,
+    initLocalStorage: LocalStorageData | null,
   ) => {
     setIsSubmitting(true);
     try {
@@ -57,13 +59,16 @@ export default function ProjectCreateView() {
     <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8">
       {/* 頂部 Header */}
       <div className="max-w-xl w-full mx-auto flex flex-col items-start gap-2 mb-6">
-        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2">
+        <Typography
+          type="h2"
+          className="border-b-0 pb-0 bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2"
+        >
           <Sparkles size={20} className="text-primary animate-pulse" />
           建立新專案
-        </h2>
-        <p className="text-zinc-400 text-sm leading-relaxed">
+        </Typography>
+        <Typography type="muted" className="text-zinc-400 leading-relaxed">
           填寫下方的名稱、描述，並可選擇性預配置 Cookies 與 LocalStorage，來為您的新測試專案進行初始化。
-        </p>
+        </Typography>
       </div>
 
       <ProjectForm

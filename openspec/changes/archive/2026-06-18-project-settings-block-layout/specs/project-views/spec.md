@@ -1,14 +1,4 @@
-# project-views Specification
-
-## Purpose
-TBD - created by archiving change project-independent-views. Update Purpose after archive.
-## Requirements
-### Requirement: Project Creation View
-系統 SHALL 提供專屬的專案建立頁面，路由路徑為 `/project/new`。該頁面 SHALL 渲染專案名稱、專案描述等輸入欄位。
-
-#### Scenario: Navigate and create project
-- **WHEN** 使用者於 `/project/new` 填寫有效的專案名稱並送出
-- **THEN** 前端呼叫建立專案 API，建立成功後自動跳轉至該專案的詳情頁面 `/project/:projectId`
+## MODIFIED Requirements
 
 ### Requirement: Project Edit View
 系統 SHALL 提供專屬的專案編輯頁面，路由路徑為 `/project/:projectId/edit`。該頁面 SHALL 載入該專案的現有設定，並以區塊化卡片（Bento Card Settings）佈局分別展示基本資訊、Cookies 設定、LocalStorage 設定與危險區域。每個設定區塊 SHALL 包含就近的獨立儲存按鈕，支援局部資料提交與獨立的 JSON 驗證，儲存成功後頁面維持在編輯頁。
@@ -24,4 +14,3 @@ TBD - created by archiving change project-independent-views. Update Purpose afte
 #### Scenario: Delete project with verification
 - **WHEN** 使用者於 `/project/:projectId/edit` 的危險區域卡片點擊刪除，並在 Dialog 中輸入與專案完全相同的名稱後點擊確定
 - **THEN** 前端呼叫刪除專案 API，刪除完成後自動跳轉回專案列表首頁 `/project`
-
