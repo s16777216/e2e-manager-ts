@@ -36,6 +36,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
+  updateProject: (projectId: string, name: string, description?: string) =>
+    request<Project>(`/projects/${projectId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, description }),
+    }),
+  deleteProject: (projectId: string) =>
+    request<{ message: string }>(`/projects/${projectId}`, {
+      method: "DELETE",
+    }),
 
   // Group APIs
   getGroups: (projectId: string) =>

@@ -5,13 +5,14 @@ import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
 import { NewSubgroupDialog } from "../components/custom/NewSubgroupDialog"
 import { api } from "../lib/api"
-import { Plus, Sparkles, Trash2, Loader2, Play } from "lucide-react"
+import { Plus, Sparkles, Trash2, Loader2, Play, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
+import { EditProjectDialog } from "../components/custom/EditProjectDialog"
 
 import type { TestGroup, Testcase } from "../types/api"
 
@@ -29,8 +30,11 @@ export default function ProjectDetailView() {
   const navigate = useNavigate()
 
   // 專案資訊
-  const { projects } = useProjectData()
+  const { projects, handleUpdateProject, handleDeleteProject } = useProjectData()
   const activeProject = projects.find((p) => p.id === projectId)
+
+  // 編輯專案 Dialog 狀態
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false)
 
 
 
@@ -331,6 +335,17 @@ export default function ProjectDetailView() {
           <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2">
             <Sparkles size={20} className="text-primary animate-pulse" />
             {activeProject ? activeProject.name : "載入專案中..."}
+            {activeProject && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowEditProjectModal(true)}
+                className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 rounded-lg transition-colors ml-1 shrink-0"
+                title="編輯專案資訊"
+              >
+                <Edit2 size={13} />
+              </Button>
+            )}
           </h2>
           <p className="text-zinc-400 text-sm mt-1.5 leading-relaxed">
             {activeProject?.description || "選擇下方測試案例開始視覺測試，或建立新的測試群組與案例。"}
@@ -550,6 +565,25 @@ export default function ProjectDetailView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {activeProject && (
+        <EditProjectDialog
+          key={`${activeProject.id}-${showEditProjectModal}`}
+          open={showEditProjectModal}
+          onOpenChange={setShowEditProjectModal}
+          project={activeProject}
+          onUpdate={async (name, description) => {
+            await handleUpdateProject(activeProject.id, name, description)
+          }}
+          onDelete={async () => {
+            const success = await handleDeleteProject(activeProject.id)
+            if (success) {
+              navigate("/project")
+            }
+            return success
+          }}
+        />
+      )}
     </div>
   )
 }

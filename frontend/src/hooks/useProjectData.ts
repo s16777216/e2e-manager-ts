@@ -39,6 +39,33 @@ export function useProjectData() {
     }
   }
 
+  const handleUpdateProject = async (projectId: string, name: string, description?: string) => {
+    if (!name.trim()) return null
+    try {
+      const updatedProj = await api.updateProject(projectId, name.trim(), description?.trim())
+      setProjects((prev) => prev.map((p) => p.id === projectId ? updatedProj : p))
+      toast.success("專案更新成功！")
+      return updatedProj
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("更新專案失敗：" + msg)
+      return null
+    }
+  }
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      await api.deleteProject(projectId)
+      setProjects((prev) => prev.filter((p) => p.id !== projectId))
+      toast.success("專案刪除成功！")
+      return true
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error("刪除專案失敗：" + msg)
+      return false
+    }
+  }
+
   useEffect(() => {
     let active = true
     Promise.resolve().then(() => {
@@ -57,6 +84,8 @@ export function useProjectData() {
     isOnline,
     setIsOnline,
     loadProjects,
-    handleCreateProject
+    handleCreateProject,
+    handleUpdateProject,
+    handleDeleteProject
   }
 }
