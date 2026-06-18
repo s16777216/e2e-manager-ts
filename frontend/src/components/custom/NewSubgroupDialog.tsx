@@ -2,24 +2,43 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { JsonEditorAccordion } from "./JsonEditorAccordion"
+import type { TestGroup } from "@/types/api"
 
 interface NewSubgroupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   parentId: string | null
-  onCreateGroup: (name: string, parentId: string | null) => Promise<unknown>
+  groupToEdit?: TestGroup | null
+  onCreateGroup: (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown) => Promise<unknown>
+  onUpdateGroup?: (name: string, initCookies?: unknown, initLocalStorage?: unknown) => Promise<unknown>
 }
 
-export function NewSubgroupDialog({ open, onOpenChange, parentId, onCreateGroup }: NewSubgroupDialogProps) {
-  const [name, setName] = useState("")
+export function NewSubgroupDialog({
+  open,
+  onOpenChange,
+  parentId,
+  groupToEdit = null,
+  onCreateGroup,
+  onUpdateGroup,
+}: NewSubgroupDialogProps) {
+  const [name, setName] = useState(groupToEdit ? groupToEdit.name : "")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [initCookies, setInitCookies] = useState<unknown>(groupToEdit ? groupToEdit.initCookies : null)
+  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(groupToEdit ? groupToEdit.initLocalStorage : null)
+  const [isJsonValid, setIsJsonValid] = useState(true)
 
   const handleSubmit = async () => {
-    if (!name.trim()) return
+    if (!name.trim() || !isJsonValid) return
     setIsSubmitting(true)
     try {
-      await onCreateGroup(name, parentId)
-      setName("")
+      if (groupToEdit) {
+        if (onUpdateGroup) {
+          await onUpdateGroup(name.trim(), initCookies, initLocalStorage)
+        }
+      } else {
+        await onCreateGroup(name.trim(), parentId, initCookies, initLocalStorage)
+      }
       onOpenChange(false)
     } finally {
       setIsSubmitting(false)
@@ -28,30 +47,52 @@ export function NewSubgroupDialog({ open, onOpenChange, parentId, onCreateGroup 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-zinc-900 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle>
-            {parentId ? "新增子群組" : "新增根群組"}
+            {groupToEdit ? "編輯群組" : parentId ? "新增子群組" : "新增根群組"}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="flex flex-col gap-4 py-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="newSubgroupName" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">群組名稱</label>
+            <label htmlFor="newSubgroupName" className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              群組名稱
+            </label>
             <Input
               id="newSubgroupName"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例如: 帳戶中心"
+              className="bg-zinc-950 border-zinc-800 text-zinc-100"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
             />
           </div>
+
+          <JsonEditorAccordion
+            key={groupToEdit ? `edit-${groupToEdit.id}` : "new-group"}
+            initCookies={groupToEdit?.initCookies}
+            initLocalStorage={groupToEdit?.initLocalStorage}
+            onChange={({ cookies, localStorage, isValid }) => {
+              setInitCookies(cookies)
+              setInitLocalStorage(localStorage)
+              setIsJsonValid(isValid)
+            }}
+          />
         </div>
         <div className="flex justify-end gap-2 pt-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
+          >
             取消
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "建立中..." : "確定建立"}
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !name.trim() || !isJsonValid}
+            className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold"
+          >
+            {isSubmitting ? "儲存中..." : "確定"}
           </Button>
         </div>
       </DialogContent>

@@ -10,12 +10,14 @@ projectRouter.get("/", async (c) => {
 });
 
 projectRouter.post("/", async (c) => {
-  const { name, description } = await c.req.json();
+  const { name, description, initCookies, initLocalStorage } = await c.req.json();
   if (!name) return c.json({ error: "專案名稱為必填" }, 400);
 
   const project = new Project();
   project.name = name;
   project.description = description;
+  project.initCookies = initCookies;
+  project.initLocalStorage = initLocalStorage;
 
   await AppDataSource.getRepository(Project).save(project);
   return c.json(project, 201);
@@ -32,7 +34,7 @@ projectRouter.get("/:id", async (c) => {
 
 projectRouter.patch("/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, description } = await c.req.json();
+  const { name, description, initCookies, initLocalStorage } = await c.req.json();
 
   const projectRepo = AppDataSource.getRepository(Project);
   const project = await projectRepo.findOne({ where: { id } });
@@ -40,6 +42,8 @@ projectRouter.patch("/:id", async (c) => {
 
   if (name) project.name = name;
   if (description !== undefined) project.description = description;
+  if (initCookies !== undefined) project.initCookies = initCookies;
+  if (initLocalStorage !== undefined) project.initLocalStorage = initLocalStorage;
 
   await projectRepo.save(project);
   return c.json(project);

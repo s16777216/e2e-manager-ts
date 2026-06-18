@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Trash2, AlertTriangle, ArrowLeft } from "lucide-react";
 import type { Project } from "@/types/api";
+import { JsonEditorAccordion } from "./JsonEditorAccordion";
 
 interface EditProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  onUpdate: (name: string, description?: string) => Promise<unknown>;
+  onUpdate: (name: string, description?: string, initCookies?: any, initLocalStorage?: any) => Promise<unknown>;
   onDelete: () => Promise<boolean>;
 }
 
@@ -32,16 +33,21 @@ export function EditProjectDialog({
   const [description, setDescription] = useState(project.description || "");
   const [isSaving, setIsSaving] = useState(false);
 
+  // 進階環境設定狀態
+  const [initCookies, setInitCookies] = useState(project.initCookies);
+  const [initLocalStorage, setInitLocalStorage] = useState(project.initLocalStorage);
+  const [isJsonValid, setIsJsonValid] = useState(true);
+
   // 刪除相關狀態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !isJsonValid) return;
     setIsSaving(true);
     try {
-      await onUpdate(name.trim(), description.trim());
+      await onUpdate(name.trim(), description.trim(), initCookies, initLocalStorage);
       onOpenChange(false);
     } finally {
       setIsSaving(false);
@@ -99,6 +105,16 @@ export function EditProjectDialog({
                   rows={3}
                 />
               </div>
+
+              <JsonEditorAccordion
+                initCookies={project.initCookies}
+                initLocalStorage={project.initLocalStorage}
+                onChange={({ cookies, localStorage, isValid }) => {
+                  setInitCookies(cookies);
+                  setInitLocalStorage(localStorage);
+                  setIsJsonValid(isValid);
+                }}
+              />
             </div>
 
             <DialogFooter className="border-t border-zinc-850 pt-3 flex items-center justify-between gap-2 sm:justify-between">
@@ -124,7 +140,7 @@ export function EditProjectDialog({
                 <Button
                   type="button"
                   onClick={handleSave}
-                  disabled={isSaving || !name.trim()}
+                  disabled={isSaving || !name.trim() || !isJsonValid}
                   className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold"
                 >
                   {isSaving ? (

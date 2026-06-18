@@ -21,10 +21,10 @@ export function useGroupData(projectId: string | undefined) {
     }
   }
 
-  const handleCreateSubgroup = async (name: string, parentId: string | null) => {
+  const handleCreateSubgroup = async (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown) => {
     if (!name.trim() || !projectId) return null
     try {
-      const newGroup = await api.createGroup(projectId, name.trim(), parentId)
+      const newGroup = await api.createGroup(projectId, name.trim(), parentId, initCookies, initLocalStorage)
       await loadGroups(projectId)
       toast.success("群組建立成功！")
       return newGroup

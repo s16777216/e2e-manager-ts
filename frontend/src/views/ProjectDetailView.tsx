@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { EditProjectDialog } from "../components/custom/EditProjectDialog"
+import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion"
 
 import type { TestGroup, Testcase } from "../types/api"
 
@@ -94,11 +95,13 @@ export default function ProjectDetailView() {
 
   // 群組樹狀態
   const {
+    groups,
     groupTree,
     expandedGroups,
     setExpandedGroups,
     handleCreateSubgroup,
     handleDeleteGroup,
+    loadGroups,
     isLoading: loadingGroups
   } = useGroupData(projectId)
 
@@ -113,6 +116,7 @@ export default function ProjectDetailView() {
   // 1. 新增群組彈窗狀態
   const [showNewGroupModal, setShowNewGroupModal] = useState(false)
   const [newGroupParentId, setNewGroupParentId] = useState<string | null>(null)
+  const [groupToEdit, setGroupToEdit] = useState<TestGroup | null>(null)
 
   // 2. 新增測試案例彈窗狀態
   const [showNewTestCaseModal, setShowNewTestCaseModal] = useState(false)
@@ -121,6 +125,11 @@ export default function ProjectDetailView() {
   const [tcExpected, setTcExpected] = useState("")
   const [targetGroupId, setTargetGroupId] = useState("")
   const [isSavingTestCase, setIsSavingTestCase] = useState(false)
+
+  // 測試案例 Cookie / LocalStorage 狀態
+  const [tcInitCookies, setTcInitCookies] = useState<unknown>(null)
+  const [tcInitLocalStorage, setTcInitLocalStorage] = useState<unknown>(null)
+  const [isTcJsonValid, setIsTcJsonValid] = useState(true)
 
   // 專案改變時清空狀態與展開
   useEffect(() => {
@@ -296,6 +305,9 @@ export default function ProjectDetailView() {
       toast.error("請選擇所屬群組！")
       return
     }
+    if (!isTcJsonValid) {
+      return
+    }
     if (!tcName.trim() || tcSteps.some((s) => !s.trim()) || !tcExpected.trim()) {
       toast.error("請填寫所有必填欄位，且步驟不可為空！")
       return
@@ -306,7 +318,9 @@ export default function ProjectDetailView() {
       await api.createTestcase(targetGroupId, {
         name: tcName.trim(),
         steps: tcSteps.map((s) => s.trim()),
-        expected: tcExpected.trim()
+        expected: tcExpected.trim(),
+        initCookies: tcInitCookies,
+        initLocalStorage: tcInitLocalStorage
       })
       toast.success("測試案例建立成功！")
       
@@ -417,6 +431,14 @@ export default function ProjectDetailView() {
                       onToggleExpand={handleToggleExpand}
                       onAddSubgroup={(parentId) => triggerAddGroup(parentId)}
                       onDeleteGroup={handleDeleteGroup}
+                      onEditGroup={(groupId) => {
+                        const g = groups.find((group) => group.id === groupId)
+                        if (g) {
+                          setGroupToEdit(g)
+                          setNewGroupParentId(g.parentId || null)
+                          setShowNewGroupModal(true)
+                        }
+                      }}
                       onRunGroup={handleRunGroup}
                       projectId={projectId || ""}
                     />
@@ -432,19 +454,50 @@ export default function ProjectDetailView() {
 
       {/* 新群組彈窗 */}
       <NewSubgroupDialog
+        key={`${showNewGroupModal}-${groupToEdit?.id || "new"}`}
         open={showNewGroupModal}
-        onOpenChange={setShowNewGroupModal}
+        onOpenChange={(open) => {
+          setShowNewGroupModal(open)
+          if (!open) {
+            setGroupToEdit(null)
+          }
+        }}
         parentId={newGroupParentId}
-        onCreateGroup={async (name, parentId) => {
-          const res = await handleCreateSubgroup(name, parentId)
+        groupToEdit={groupToEdit}
+        onCreateGroup={async (name, parentId, initCookies, initLocalStorage) => {
+          const res = await handleCreateSubgroup(name, parentId, initCookies, initLocalStorage)
           if (res) {
             setShowNewGroupModal(false)
+          }
+        }}
+        onUpdateGroup={async (name, initCookies, initLocalStorage) => {
+          if (!groupToEdit) return
+          try {
+            await api.updateGroup(groupToEdit.id, { name, initCookies, initLocalStorage })
+            if (projectId) {
+              await loadGroups(projectId)
+            }
+            toast.success("群組更新成功！")
+            setShowNewGroupModal(false)
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err)
+            toast.error("更新群組失敗：" + msg)
           }
         }}
       />
 
       {/* 新測試案例彈窗 */}
-      <Dialog open={showNewTestCaseModal} onOpenChange={setShowNewTestCaseModal}>
+      <Dialog
+        open={showNewTestCaseModal}
+        onOpenChange={(open) => {
+          setShowNewTestCaseModal(open)
+          if (!open) {
+            setTcInitCookies(null)
+            setTcInitLocalStorage(null)
+            setIsTcJsonValid(true)
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl bg-zinc-900 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>建立全新測試案例</DialogTitle>
@@ -541,6 +594,16 @@ export default function ProjectDetailView() {
               />
             </div>
 
+            <JsonEditorAccordion
+              initCookies={null}
+              initLocalStorage={null}
+              onChange={({ cookies, localStorage, isValid }) => {
+                setTcInitCookies(cookies)
+                setTcInitLocalStorage(localStorage)
+                setIsTcJsonValid(isValid)
+              }}
+            />
+
           </div>
 
           <DialogFooter className="border-t border-zinc-850 pt-3">
@@ -553,7 +616,7 @@ export default function ProjectDetailView() {
             </Button>
             <Button
               onClick={handleSaveTestCase}
-              disabled={isSavingTestCase}
+              disabled={isSavingTestCase || !isTcJsonValid}
               className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
             >
               {isSavingTestCase ? (
@@ -572,8 +635,8 @@ export default function ProjectDetailView() {
           open={showEditProjectModal}
           onOpenChange={setShowEditProjectModal}
           project={activeProject}
-          onUpdate={async (name, description) => {
-            await handleUpdateProject(activeProject.id, name, description)
+          onUpdate={async (name, description, initCookies, initLocalStorage) => {
+            await handleUpdateProject(activeProject.id, name, description, initCookies, initLocalStorage)
           }}
           onDelete={async () => {
             const success = await handleDeleteProject(activeProject.id)

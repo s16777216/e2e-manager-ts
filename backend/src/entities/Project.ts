@@ -15,6 +15,12 @@ export class Project {
   @OneToMany(() => TestGroup, group => group.project)
   groups!: TestGroup[];
 
+  @Column("jsonb", { nullable: true })
+  initCookies?: any;
+
+  @Column("jsonb", { nullable: true })
+  initLocalStorage?: any;
+
   @CreateDateColumn()
   createdAt!: Date;
 

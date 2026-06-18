@@ -1,4 +1,4 @@
-import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2, Play } from "lucide-react"
+import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2, Play, Edit2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 export interface FlatTreeRow {
@@ -21,6 +21,7 @@ interface GroupTreeNodeProps {
   onToggleExpand: (groupId: string) => void;
   onAddSubgroup: (parentId: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onEditGroup?: (groupId: string) => void;
   onRunGroup?: (groupId: string) => void;
   projectId: string;
 }
@@ -33,6 +34,7 @@ export function GroupTreeNode({
   onToggleExpand,
   onAddSubgroup,
   onDeleteGroup,
+  onEditGroup,
   onRunGroup,
   projectId
 }: GroupTreeNodeProps) {
@@ -164,6 +166,18 @@ export function GroupTreeNode({
                   className="p-1.5 hover:bg-zinc-800 rounded text-emerald-500 hover:text-emerald-400 transition-colors"
                 >
                   <Play size={12} className="fill-current" />
+                </button>
+              )}
+              {onEditGroup && (
+                <button
+                  title="編輯群組"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEditGroup(row.id)
+                  }}
+                  className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
+                >
+                  <Edit2 size={12} />
                 </button>
               )}
               <button

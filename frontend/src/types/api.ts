@@ -4,6 +4,8 @@ export interface Project {
   description?: string;
   createdAt: string;
   groups?: TestGroup[];
+  initCookies?: any;
+  initLocalStorage?: any;
 }
 
 export interface TestGroup {
@@ -13,6 +15,8 @@ export interface TestGroup {
   parentId?: string | null;
   children?: TestGroup[];
   testcases?: Testcase[];
+  initCookies?: any;
+  initLocalStorage?: any;
 }
 
 export interface Testcase {
@@ -23,6 +27,8 @@ export interface Testcase {
   createdAt: string;
   group?: TestGroup;
   runs?: TestRun[];
+  initCookies?: any;
+  initLocalStorage?: any;
 }
 
 export interface TestRun {

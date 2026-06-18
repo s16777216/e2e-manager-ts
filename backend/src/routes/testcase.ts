@@ -16,7 +16,7 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
 
 testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
-  const { name, steps, expected } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage } = await c.req.json();
 
   if (
     !name ||
@@ -41,6 +41,8 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   testcase.steps = steps;
   testcase.expected = expected;
   testcase.group = group;
+  testcase.initCookies = initCookies;
+  testcase.initLocalStorage = initLocalStorage;
 
   await AppDataSource.getRepository(Testcase).save(testcase);
   return c.json(testcase, 201);
@@ -58,7 +60,7 @@ testcaseRouter.get("/testcases/:id", async (c) => {
 
 testcaseRouter.patch("/testcases/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, steps, expected } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage } = await c.req.json();
 
   const testcaseRepo = AppDataSource.getRepository(Testcase);
   const testcase = await testcaseRepo.findOne({ where: { id } });
@@ -72,6 +74,8 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
     testcase.steps = steps;
   }
   if (expected) testcase.expected = expected;
+  if (initCookies !== undefined) testcase.initCookies = initCookies;
+  if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
 
   await testcaseRepo.save(testcase);
   return c.json(testcase);

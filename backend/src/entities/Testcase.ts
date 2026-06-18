@@ -22,6 +22,12 @@ export class Testcase {
   @OneToMany(() => TestRun, run => run.testcase)
   runs!: TestRun[];
 
+  @Column("jsonb", { nullable: true })
+  initCookies?: any;
+
+  @Column("jsonb", { nullable: true })
+  initLocalStorage?: any;
+
   @CreateDateColumn()
   createdAt!: Date;
 

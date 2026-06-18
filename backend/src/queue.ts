@@ -4,6 +4,10 @@ import { BrowserManager } from "./browser.js";
 import { E2EGraphBuilder } from "./graph.js";
 import { TaskFSM } from "./queue/taskFSM.js";
 import { Task } from "./entities/Task.js";
+import { Project } from "./entities/Project.js";
+import { TestGroup } from "./entities/TestGroup.js";
+import { Testcase } from "./entities/Testcase.js";
+import { mergeCookies, mergeLocalStorage } from "./services/environmentService.js";
 
 export class TaskQueue {
   private isRunning = false;
@@ -88,11 +92,83 @@ export class TaskQueue {
     }
 
     const testcase = run.testcase;
+
+    // 遞迴加載 Group 與 Project 繼承鏈
+    const testcaseRepo = AppDataSource.getRepository(Testcase);
+    const fullTestcase = await testcaseRepo.findOne({
+      where: { id: testcase.id },
+      relations: { group: true }
+    });
+
+    if (!fullTestcase) {
+      console.error(`[Worker] 找不到測試案例：${testcase.id}`);
+      return;
+    }
+
+    const groupsChain: TestGroup[] = [];
+    let currentGroup = fullTestcase.group;
+    let projectId: string | null = null;
+
+    while (currentGroup) {
+      const loadedGroup = await AppDataSource.getRepository(TestGroup).findOne({
+        where: { id: currentGroup.id },
+        relations: { parent: true, project: true }
+      });
+      if (!loadedGroup) {
+        break;
+      }
+      groupsChain.unshift(loadedGroup);
+      if (loadedGroup.project && !projectId) {
+        projectId = loadedGroup.project.id;
+      }
+      currentGroup = loadedGroup.parent;
+    }
+
+    let project: Project | null = null;
+    if (projectId) {
+      project = await AppDataSource.getRepository(Project).findOne({
+        where: { id: projectId }
+      });
+    }
+
+    // 合併 Cookie 與 LocalStorage
+    let mergedCookies: any[] = [];
+    let mergedLocalStorage: any = {};
+
+    if (project) {
+      mergedCookies = mergeCookies(mergedCookies, project.initCookies);
+      mergedLocalStorage = mergeLocalStorage(mergedLocalStorage, project.initLocalStorage);
+    }
+
+    for (const group of groupsChain) {
+      mergedCookies = mergeCookies(mergedCookies, group.initCookies);
+      mergedLocalStorage = mergeLocalStorage(mergedLocalStorage, group.initLocalStorage);
+    }
+
+    mergedCookies = mergeCookies(mergedCookies, fullTestcase.initCookies);
+    mergedLocalStorage = mergeLocalStorage(mergedLocalStorage, fullTestcase.initLocalStorage);
+
     const browserManager = new BrowserManager();
 
     try {
       // 初始化 Playwright 瀏覽器 (預設為 headless 模式)
       await browserManager.initBrowser(true);
+
+      // 注入 Cookie 與 LocalStorage
+      if (browserManager.context) {
+        if (mergedCookies && mergedCookies.length > 0) {
+          console.log(`[Worker] 正在注入 ${mergedCookies.length} 個 Cookies`);
+          await browserManager.context.addCookies(mergedCookies);
+        }
+        if (mergedLocalStorage && Object.keys(mergedLocalStorage).length > 0) {
+          console.log(`[Worker] 正在注入 LocalStorage`);
+          await browserManager.context.addInitScript((data) => {
+            Object.entries(data).forEach(([key, val]) => {
+              window.localStorage.setItem(key, typeof val === "string" ? val : JSON.stringify(val));
+            });
+          }, mergedLocalStorage);
+        }
+      }
 
       const builder = new E2EGraphBuilder(browserManager);
       const graph = builder.buildGraph();

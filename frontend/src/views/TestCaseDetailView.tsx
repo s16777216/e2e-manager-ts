@@ -3,6 +3,7 @@ import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { api } from "../lib/api";
 import type { Testcase, TestRun } from "../types/api";
+import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion";
 import {
   Play,
   Edit,
@@ -67,6 +68,9 @@ export default function TestCaseDetailView() {
   const [tcSteps, setTcSteps] = useState<string[]>([""]);
   const [tcExpected, setTcExpected] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [initCookies, setInitCookies] = useState<unknown>(null);
+  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(null);
+  const [isJsonValid, setIsJsonValid] = useState(true);
 
   // 執行測試狀態
   const [isTriggering, setIsTriggering] = useState(false);
@@ -93,6 +97,8 @@ export default function TestCaseDetailView() {
       setTcName(data.name);
       setTcSteps(data.steps.length > 0 ? [...data.steps] : [""]);
       setTcExpected(data.expected);
+      setInitCookies(data.initCookies);
+      setInitLocalStorage(data.initLocalStorage);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error("載入測試案例失敗：" + msg);
@@ -134,6 +140,7 @@ export default function TestCaseDetailView() {
   // 儲存修改
   const handleSaveEdit = async () => {
     if (!testCaseId) return;
+    if (!isJsonValid) return;
     if (
       !tcName.trim() ||
       tcSteps.some((s) => !s.trim()) ||
@@ -149,6 +156,8 @@ export default function TestCaseDetailView() {
         name: tcName.trim(),
         steps: tcSteps.map((s) => s.trim()),
         expected: tcExpected.trim(),
+        initCookies,
+        initLocalStorage,
       });
       toast.success("測試案例修改成功！");
       setIsEditing(false);
@@ -463,6 +472,16 @@ export default function TestCaseDetailView() {
                     />
                   </div>
 
+                  <JsonEditorAccordion
+                    initCookies={testcase.initCookies}
+                    initLocalStorage={testcase.initLocalStorage}
+                    onChange={({ cookies, localStorage, isValid }) => {
+                      setInitCookies(cookies);
+                      setInitLocalStorage(localStorage);
+                      setIsJsonValid(isValid);
+                    }}
+                  />
+
                   {/* 表單底操作 */}
                   <div className="flex justify-end gap-2 border-t border-zinc-850 pt-4 mt-2">
                     <Button
@@ -473,6 +492,9 @@ export default function TestCaseDetailView() {
                         setTcName(testcase.name);
                         setTcSteps([...testcase.steps]);
                         setTcExpected(testcase.expected);
+                        setInitCookies(testcase.initCookies);
+                        setInitLocalStorage(testcase.initLocalStorage);
+                        setIsJsonValid(true);
                       }}
                       className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
                     >
@@ -480,7 +502,7 @@ export default function TestCaseDetailView() {
                     </Button>
                     <Button
                       onClick={handleSaveEdit}
-                      disabled={isSaving}
+                      disabled={isSaving || !isJsonValid}
                       className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
                     >
                       {isSaving ? (

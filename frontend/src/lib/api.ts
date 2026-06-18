@@ -36,10 +36,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
-  updateProject: (projectId: string, name: string, description?: string) =>
+  updateProject: (projectId: string, name: string, description?: string, initCookies?: any, initLocalStorage?: any) =>
     request<Project>(`/projects/${projectId}`, {
       method: "PATCH",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
     }),
   deleteProject: (projectId: string) =>
     request<{ message: string }>(`/projects/${projectId}`, {
@@ -49,15 +49,15 @@ export const api = {
   // Group APIs
   getGroups: (projectId: string) =>
     request<TestGroup[]>(`/projects/${projectId}/groups`),
-  createGroup: (projectId: string, name: string, parentId?: string | null) =>
+  createGroup: (projectId: string, name: string, parentId?: string | null, initCookies?: any, initLocalStorage?: any) =>
     request<TestGroup>(`/projects/${projectId}/groups`, {
       method: "POST",
-      body: JSON.stringify({ name, parentId }),
+      body: JSON.stringify({ name, parentId, initCookies, initLocalStorage }),
     }),
-  updateGroup: (groupId: string, parentId: string | null) =>
+  updateGroup: (groupId: string, data: { name?: string; parentId?: string | null; initCookies?: any; initLocalStorage?: any }) =>
     request<TestGroup>(`/groups/${groupId}`, {
       method: "PATCH",
-      body: JSON.stringify({ parentId }),
+      body: JSON.stringify(data),
     }),
   deleteGroup: (groupId: string) =>
     request<{ message: string }>(`/groups/${groupId}`, {
@@ -69,7 +69,7 @@ export const api = {
     request<Testcase[]>(`/groups/${groupId}/testcases`),
   createTestcase: (
     groupId: string,
-    data: { name: string; steps: string[]; expected: string },
+    data: { name: string; steps: string[]; expected: string; initCookies?: any; initLocalStorage?: any },
   ) =>
     request<Testcase>(`/groups/${groupId}/testcases`, {
       method: "POST",
@@ -77,7 +77,7 @@ export const api = {
     }),
   updateTestcase: (
     testcaseId: string,
-    data: { name?: string; steps?: string[]; expected?: string },
+    data: { name?: string; steps?: string[]; expected?: string; initCookies?: any; initLocalStorage?: any },
   ) =>
     request<Testcase>(`/testcases/${testcaseId}`, {
       method: "PATCH",
