@@ -1,8 +1,8 @@
 ## ADDED Requirements
 
-### Requirement: Cookie and LocalStorage Pre-injection Configuration Form
-前端介面 MUST 提供編輯與新增測試案例的 UI 配置，以支援輸入 JSON 格式的 Cookie 與 LocalStorage 預設資訊，且在執行測試前將其寫入 Playwright Context 中。
+### Requirement: Multi-level Pre-injection Configuration UI
+前端介面 MUST 在專案編輯、群組編輯、以及測試案例編輯對話框中，提供「進階環境設定」的摺疊表單，以支援輸入 JSON 格式的 Cookie 與 LocalStorage 預設資訊。
 
-#### Scenario: Edit testcase with environment injection
-- **WHEN** 使用者在建立或編輯測試案例時，展開「進階環境設定」並輸入有效的 Cookie 與 LocalStorage JSON 後儲存
-- **THEN** 前端將其傳送至 API，且於啟動測試時，Playwright 自動載入此 Cookie 並在頁面初始化時注入對應的 LocalStorage 值
+#### Scenario: Edit settings with JSON validation
+- **WHEN** 使用者在專案、群組或測試案例中展開「進階環境設定」，輸入 JSON 並點擊儲存時
+- **THEN** 前端進行格式驗證，驗證成功後送往 API 儲存，且於執行測試時，Playwright 會套用合併後的設定
