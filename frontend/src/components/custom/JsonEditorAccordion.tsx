@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Settings, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import type { CookiesData, LocalStorageData } from "@/types/api";
@@ -70,13 +70,19 @@ export function JsonEditorAccordion({
   const { parsed: parsedLocalStorage, isValid: isLocalStorageValid, error: localStorageError } = validateLocalStorage(localStorageStr);
   const isValid = isCookiesValid && isLocalStorageValid;
 
+  // Keep a ref to the latest onChange callback to prevent infinite re-render loops
+  const onChangeRef = useRef(onChange);
   useEffect(() => {
-    onChange({
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onChangeRef.current({
       cookies: parsedCookies,
       localStorage: parsedLocalStorage,
       isValid,
     });
-  }, [cookiesStr, localStorageStr, onChange]);
+  }, [cookiesStr, localStorageStr]);
 
   return (
     <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950/40 backdrop-blur-sm transition-all duration-300">
