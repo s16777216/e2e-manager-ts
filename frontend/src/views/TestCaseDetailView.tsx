@@ -484,7 +484,7 @@ export default function TestCaseDetailView() {
                               onChange={(e) =>
                                 handleStepActionChange(idx, e.target.value)
                               }
-                              placeholder="操作描述（必填），如：點擊 '送出' 按鈕"
+                              placeholder="操作描述，如：點擊 '送出' 按鈕"
                               className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-8 text-xs focus-visible:ring-emerald-500"
                             />
                             <div className="flex items-center space-x-2">
@@ -521,8 +521,8 @@ export default function TestCaseDetailView() {
                                 onChange={(e) =>
                                   handleStepExpectedChange(idx, e.target.value)
                                 }
-                                placeholder="步驟預期結果（選填，如：進入首頁。無變化請填：直接完成）"
-                                className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
+                                placeholder="步驟預期結果，如：進入首頁、跳出錯誤視窗、出現註冊按鈕、未出現xxx）"
+                                className="bg-zinc-950/40 border-zinc-900 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
                               />
                             </div>
                           )}
