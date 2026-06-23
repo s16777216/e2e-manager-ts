@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { TestGroup } from "./TestGroup.js";
 import { TestRun } from "./TestRun.js";
+import { TestcaseStep } from "./TestcaseStep.js";
 
 @Entity()
 export class Testcase {
@@ -10,8 +11,8 @@ export class Testcase {
   @Column("varchar")
   name!: string;
 
-  @Column("simple-json")
-  steps!: string[];
+  @OneToMany(() => TestcaseStep, step => step.testcase, { cascade: true })
+  steps!: TestcaseStep[];
 
   @Column("text")
   expected!: string;

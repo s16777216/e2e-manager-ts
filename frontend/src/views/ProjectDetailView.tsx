@@ -120,7 +120,7 @@ export default function ProjectDetailView() {
   // 2. 新增測試案例彈窗狀態
   const [showNewTestCaseModal, setShowNewTestCaseModal] = useState(false)
   const [tcName, setTcName] = useState("")
-  const [tcSteps, setTcSteps] = useState<string[]>([""])
+  const [tcSteps, setTcSteps] = useState<Array<{ action: string; expected?: string }>>([{ action: "" }])
   const [tcExpected, setTcExpected] = useState("")
   const [targetGroupId, setTargetGroupId] = useState("")
   const [isSavingTestCase, setIsSavingTestCase] = useState(false)
@@ -332,7 +332,7 @@ export default function ProjectDetailView() {
 
   // 測試案例步驟表單增減
   const handleAddStepInput = () => {
-    setTcSteps([...tcSteps, ""])
+    setTcSteps([...tcSteps, { action: "" }])
   }
 
   const handleRemoveStepInput = (index: number) => {
@@ -342,9 +342,15 @@ export default function ProjectDetailView() {
     setTcSteps(newSteps)
   }
 
-  const handleStepValueChange = (index: number, val: string) => {
+  const handleStepActionChange = (index: number, val: string) => {
     const newSteps = [...tcSteps]
-    newSteps[index] = val
+    newSteps[index] = { ...newSteps[index], action: val }
+    setTcSteps(newSteps)
+  }
+
+  const handleStepExpectedChange = (index: number, val: string) => {
+    const newSteps = [...tcSteps]
+    newSteps[index] = { ...newSteps[index], expected: val }
     setTcSteps(newSteps)
   }
 
@@ -357,7 +363,7 @@ export default function ProjectDetailView() {
     if (!isTcJsonValid) {
       return
     }
-    if (!tcName.trim() || tcSteps.some((s) => !s.trim()) || !tcExpected.trim()) {
+    if (!tcName.trim() || tcSteps.some((s) => !s.action.trim()) || !tcExpected.trim()) {
       toast.error("請填寫所有必填欄位，且步驟不可為空！")
       return
     }
@@ -366,7 +372,10 @@ export default function ProjectDetailView() {
     try {
       await api.createTestcase(targetGroupId, {
         name: tcName.trim(),
-        steps: tcSteps.map((s) => s.trim()),
+        steps: tcSteps.map((s) => ({
+          action: s.action.trim(),
+          expected: s.expected?.trim() || undefined
+        })),
         expected: tcExpected.trim(),
         initCookies: tcInitCookies,
         initLocalStorage: tcInitLocalStorage
@@ -375,7 +384,7 @@ export default function ProjectDetailView() {
       
       // 重置 Form 狀態
       setTcName("")
-      setTcSteps([""])
+      setTcSteps([{ action: "" }])
       setTcExpected("")
       setShowNewTestCaseModal(false)
 
@@ -599,27 +608,38 @@ export default function ProjectDetailView() {
               <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                 測試步驟 (自然語言描述) <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+              <div className="flex flex-col gap-3 max-h-56 overflow-y-auto pr-1">
                 {tcSteps.map((step, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <span className="flex items-center justify-center bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 rounded px-2 w-7 font-mono shrink-0">
-                      {idx + 1}
-                    </span>
-                    <Input
-                      type="text"
-                      value={step}
-                      onChange={(e) => handleStepValueChange(idx, e.target.value)}
-                      placeholder="例如: 進入 https://zh.wikipedia.org/"
-                      className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleRemoveStepInput(idx)}
-                      className="border-zinc-800 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 flex-shrink-0"
-                    >
-                      <Trash2 size={12} />
-                    </Button>
+                  <div key={idx} className="flex flex-col gap-2 p-2.5 bg-zinc-950/60 border border-zinc-850 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 rounded h-8 w-8 font-mono shrink-0">
+                        {idx + 1}
+                      </span>
+                      <Input
+                        type="text"
+                        value={step.action}
+                        onChange={(e) => handleStepActionChange(idx, e.target.value)}
+                        placeholder="操作描述（必填，如：點擊 '送出' 按鈕）"
+                        className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-8 text-xs focus-visible:ring-emerald-500"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleRemoveStepInput(idx)}
+                        className="border-zinc-800 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 flex-shrink-0 h-8 w-8"
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                    <div className="pl-10">
+                      <Input
+                        type="text"
+                        value={step.expected || ""}
+                        onChange={(e) => handleStepExpectedChange(idx, e.target.value)}
+                        placeholder="步驟預期結果（選填，無變化請填：直接完成）"
+                        className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -627,9 +647,9 @@ export default function ProjectDetailView() {
                 variant="outline"
                 size="sm"
                 onClick={handleAddStepInput}
-                className="self-start text-[10px] border-zinc-850 mt-1"
+                className="self-start text-[10px] border-zinc-850 hover:bg-zinc-900 text-zinc-300 mt-1"
               >
-                <Plus size={10} /> 新增下一步
+                <Plus size={10} className="mr-1" /> 新增下一步
               </Button>
             </div>
 

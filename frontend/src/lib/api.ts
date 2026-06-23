@@ -34,14 +34,20 @@ export const api = {
   createProject: (
     name: string,
     description?: string,
-    initCookies?: any,
-    initLocalStorage?: any,
+    initCookies?: unknown,
+    initLocalStorage?: unknown,
   ) =>
     request<Project>("/projects", {
       method: "POST",
       body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
     }),
-  updateProject: (projectId: string, name: string, description?: string, initCookies?: any, initLocalStorage?: any) =>
+  updateProject: (
+    projectId: string,
+    name: string,
+    description?: string,
+    initCookies?: unknown,
+    initLocalStorage?: unknown,
+  ) =>
     request<Project>(`/projects/${projectId}`, {
       method: "PATCH",
       body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
@@ -54,12 +60,26 @@ export const api = {
   // Group APIs
   getGroups: (projectId: string) =>
     request<TestGroup[]>(`/projects/${projectId}/groups`),
-  createGroup: (projectId: string, name: string, parentId?: string | null, initCookies?: any, initLocalStorage?: any) =>
+  createGroup: (
+    projectId: string,
+    name: string,
+    parentId?: string | null,
+    initCookies?: unknown,
+    initLocalStorage?: unknown,
+  ) =>
     request<TestGroup>(`/projects/${projectId}/groups`, {
       method: "POST",
       body: JSON.stringify({ name, parentId, initCookies, initLocalStorage }),
     }),
-  updateGroup: (groupId: string, data: { name?: string; parentId?: string | null; initCookies?: any; initLocalStorage?: any }) =>
+  updateGroup: (
+    groupId: string,
+    data: {
+      name?: string;
+      parentId?: string | null;
+      initCookies?: unknown;
+      initLocalStorage?: unknown;
+    },
+  ) =>
     request<TestGroup>(`/groups/${groupId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -74,7 +94,13 @@ export const api = {
     request<Testcase[]>(`/groups/${groupId}/testcases`),
   createTestcase: (
     groupId: string,
-    data: { name: string; steps: string[]; expected: string; initCookies?: any; initLocalStorage?: any },
+    data: {
+      name: string;
+      steps: Array<{ action: string; expected?: string }>;
+      expected: string;
+      initCookies?: unknown;
+      initLocalStorage?: unknown;
+    },
   ) =>
     request<Testcase>(`/groups/${groupId}/testcases`, {
       method: "POST",
@@ -82,7 +108,13 @@ export const api = {
     }),
   updateTestcase: (
     testcaseId: string,
-    data: { name?: string; steps?: string[]; expected?: string; initCookies?: any; initLocalStorage?: any },
+    data: {
+      name?: string;
+      steps?: Array<{ action: string; expected?: string }>;
+      expected?: string;
+      initCookies?: unknown;
+      initLocalStorage?: unknown;
+    },
   ) =>
     request<Testcase>(`/testcases/${testcaseId}`, {
       method: "PATCH",

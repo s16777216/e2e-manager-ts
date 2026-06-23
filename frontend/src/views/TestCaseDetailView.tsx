@@ -68,7 +68,7 @@ export default function TestCaseDetailView() {
   // 編輯模式狀態
   const [isEditing, setIsEditing] = useState(false);
   const [tcName, setTcName] = useState("");
-  const [tcSteps, setTcSteps] = useState<string[]>([""]);
+  const [tcSteps, setTcSteps] = useState<Array<{ action: string; expected?: string }>>([{ action: "" }]);
   const [tcExpected, setTcExpected] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [initCookies, setInitCookies] = useState<unknown>(null);
@@ -119,7 +119,7 @@ export default function TestCaseDetailView() {
       setTestcase(data);
       // 同步設定編輯欄位
       setTcName(data.name);
-      setTcSteps(data.steps.length > 0 ? [...data.steps] : [""]);
+      setTcSteps(data.steps.length > 0 ? data.steps.map(s => ({ action: s.action, expected: s.expected })) : [{ action: "" }]);
       setTcExpected(data.expected);
       setInitCookies(data.initCookies);
       setInitLocalStorage(data.initLocalStorage);
@@ -145,7 +145,7 @@ export default function TestCaseDetailView() {
 
   // 步驟表單增減
   const handleAddStepInput = () => {
-    setTcSteps([...tcSteps, ""]);
+    setTcSteps([...tcSteps, { action: "" }]);
   };
 
   const handleRemoveStepInput = (index: number) => {
@@ -155,9 +155,15 @@ export default function TestCaseDetailView() {
     setTcSteps(newSteps);
   };
 
-  const handleStepValueChange = (index: number, val: string) => {
+  const handleStepActionChange = (index: number, val: string) => {
     const newSteps = [...tcSteps];
-    newSteps[index] = val;
+    newSteps[index] = { ...newSteps[index], action: val };
+    setTcSteps(newSteps);
+  };
+
+  const handleStepExpectedChange = (index: number, val: string) => {
+    const newSteps = [...tcSteps];
+    newSteps[index] = { ...newSteps[index], expected: val };
     setTcSteps(newSteps);
   };
 
@@ -167,7 +173,7 @@ export default function TestCaseDetailView() {
     if (!isJsonValid) return;
     if (
       !tcName.trim() ||
-      tcSteps.some((s) => !s.trim()) ||
+      tcSteps.some((s) => !s.action.trim()) ||
       !tcExpected.trim()
     ) {
       toast.error("請填寫所有必填欄位，且步驟不可為空！");
@@ -178,7 +184,10 @@ export default function TestCaseDetailView() {
     try {
       await api.updateTestcase(testCaseId, {
         name: tcName.trim(),
-        steps: tcSteps.map((s) => s.trim()),
+        steps: tcSteps.map((s) => ({
+          action: s.action.trim(),
+          expected: s.expected?.trim() || undefined
+        })),
         expected: tcExpected.trim(),
         initCookies,
         initLocalStorage,
@@ -446,38 +455,51 @@ export default function TestCaseDetailView() {
                     <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                       測試步驟 <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-3">
                       {tcSteps.map((step, idx) => (
-                        <div key={idx} className="flex gap-2">
-                          <span className="flex items-center justify-center bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 rounded px-2 w-7 font-mono flex-shrink-0">
-                            {idx + 1}
-                          </span>
-                          <Input
-                            type="text"
-                            value={step}
-                            onChange={(e) =>
-                              handleStepValueChange(idx, e.target.value)
-                            }
-                            placeholder="描述執行動作，如：點擊 '送出' 按鈕"
-                            className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100"
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleRemoveStepInput(idx)}
-                            className="border-zinc-800 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 flex-shrink-0"
-                          >
-                            <Trash2 size={12} />
-                          </Button>
+                        <div key={idx} className="flex flex-col gap-2 p-3 bg-zinc-950/60 border border-zinc-850 rounded-xl">
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-400 rounded h-8 w-8 font-mono flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <Input
+                              type="text"
+                              value={step.action}
+                              onChange={(e) =>
+                                handleStepActionChange(idx, e.target.value)
+                              }
+                              placeholder="操作描述（必填），如：點擊 '送出' 按鈕"
+                              className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-8 text-xs focus-visible:ring-emerald-500"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleRemoveStepInput(idx)}
+                              className="border-zinc-800 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 flex-shrink-0 h-8 w-8"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                          <div className="pl-10">
+                            <Input
+                              type="text"
+                              value={step.expected || ""}
+                              onChange={(e) =>
+                                handleStepExpectedChange(idx, e.target.value)
+                              }
+                              placeholder="步驟預期結果（選填，如：進入首頁。無變化請填：直接完成）"
+                              className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
+                            />
+                          </div>
                         </div>
                       ))}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleAddStepInput}
-                        className="self-start text-[10px] border-zinc-850"
+                        className="self-start text-[10px] border-zinc-850 hover:bg-zinc-900 text-zinc-300"
                       >
-                        <Plus size={10} /> 新增下一步
+                        <Plus size={10} className="mr-1" /> 新增下一步
                       </Button>
                     </div>
                   </div>
@@ -530,7 +552,7 @@ export default function TestCaseDetailView() {
                         setIsEditing(false);
                         // 還原資料
                         setTcName(testcase.name);
-                        setTcSteps([...testcase.steps]);
+                        setTcSteps(testcase.steps.map(s => ({ action: s.action, expected: s.expected })));
                         setTcExpected(testcase.expected);
                         setInitCookies(testcase.initCookies);
                         setInitLocalStorage(testcase.initLocalStorage);
@@ -563,11 +585,20 @@ export default function TestCaseDetailView() {
                     </h4>
                     <div className="flex flex-col gap-3">
                       {testcase.steps.map((step, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <span className="h-6 w-6 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-300 font-mono">
-                            {idx + 1}
-                          </span>
-                          <span className="text-sm text-zinc-300">{step}</span>
+                        <div key={idx} className="flex flex-col gap-1.5 p-3 bg-zinc-900/10 border border-zinc-900 rounded-xl animate-fadeIn">
+                          <div className="flex items-start gap-3">
+                            <span className="h-6 w-6 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-300 font-mono mt-0.5 flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1">
+                              <p className="text-sm text-zinc-200 font-medium">{step.action}</p>
+                              {step.expected && (
+                                <p className="text-xs text-zinc-500 mt-1 italic">
+                                  預期結果: <span className="text-zinc-400 not-italic">{step.expected}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>

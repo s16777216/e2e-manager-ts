@@ -8,6 +8,7 @@ import { Project } from "./entities/Project.js";
 import { TestGroup } from "./entities/TestGroup.js";
 import { Testcase } from "./entities/Testcase.js";
 import { TestRun } from "./entities/TestRun.js";
+import { TestcaseStep } from "./entities/TestcaseStep.js";
 
 // 載入 .env 中的環境變數
 dotenv.config();
@@ -93,19 +94,23 @@ async function main() {
     await groupRepo.save(group);
   }
 
-  let testcaseEntity = await testcaseRepo.findOne({ where: { name: testCase.name } });
-  if (!testcaseEntity) {
+  let testcaseEntity = await testcaseRepo.findOne({ where: { name: testCase.name }, relations: { steps: true } });
+  if (testcaseEntity) {
+    await AppDataSource.getRepository(TestcaseStep).delete({ testcase: { id: testcaseEntity.id } });
+  } else {
     testcaseEntity = new Testcase();
     testcaseEntity.name = testCase.name;
-    testcaseEntity.steps = testCase.steps;
-    testcaseEntity.expected = testCase.expected;
     testcaseEntity.group = group;
-    await testcaseRepo.save(testcaseEntity);
-  } else {
-    testcaseEntity.steps = testCase.steps;
-    testcaseEntity.expected = testCase.expected;
-    await testcaseRepo.save(testcaseEntity);
   }
+
+  testcaseEntity.expected = testCase.expected;
+  testcaseEntity.steps = testCase.steps.map((stepText: string, idx: number) => {
+    const step = new TestcaseStep();
+    step.stepIdx = idx;
+    step.action = stepText;
+    return step;
+  });
+  await testcaseRepo.save(testcaseEntity);
 
   const run = new TestRun();
   run.testcase = testcaseEntity;
@@ -147,6 +152,7 @@ async function main() {
     test_id: testcaseEntity.id,
     test_name: testCase.name,
     steps: testCase.steps,
+    step_expecteds: testCase.steps.map(() => ""), // CLI 中無步驟預期結果
     expected: testCase.expected,
     current_step_idx: 0,
     step_retry_count: 0,

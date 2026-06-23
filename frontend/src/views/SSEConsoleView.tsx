@@ -151,15 +151,20 @@ export default function SSEConsoleView() {
       {/* 主日誌區 (單欄 Bento Style) */}
       <ScrollArea className="flex-1 bg-zinc-950/40">
         <div className="w-full mx-auto space-y-6">
-          {!runStatus?.steps || runStatus.steps.length === 0 ? (
+          {!(runStatus?.steps && runStatus.steps.length > 0) &&
+          !(runStatus?.testcaseSteps && runStatus.testcaseSteps.length > 0) &&
+          !(testcase?.steps && testcase.steps.length > 0) ? (
             <div className="flex flex-col items-center justify-center py-32 text-muted-foreground gap-3">
               <Loader2 className="animate-spin text-primary" size={32} />
               <span className="text-sm italic">
-                正在等待 Agent 開始執行步驟...
+                正在準備測試步驟...
               </span>
             </div>
           ) : (
-            <StepAccordion steps={runStatus.steps} />
+            <StepAccordion
+              steps={runStatus?.steps || []}
+              testcaseSteps={runStatus?.testcaseSteps || testcase?.steps || []}
+            />
           )}
 
           {/* 如果任務失敗且有全域失敗截圖，但在步驟中沒顯示出來，可以在此處作為備份展示 */}

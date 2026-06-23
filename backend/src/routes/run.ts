@@ -8,6 +8,7 @@ import { TestLog } from "../entities/TestLog.js";
 import { TestGroup } from "../entities/TestGroup.js";
 import { Task } from "../entities/Task.js";
 import { TestRunStep } from "../entities/TestRunStep.js";
+import { TestcaseStep } from "../entities/TestcaseStep.js";
 
 export const runRouter = new Hono();
 
@@ -211,8 +212,17 @@ runRouter.get("/runs/:runId", async (c) => {
       steps: {
         logs: true,
       },
-      testcase: true,
+      testcase: {
+        steps: true,
+      },
     },
+    order: {
+      testcase: {
+        steps: {
+          stepIdx: "ASC"
+        }
+      }
+    }
   });
 
   if (!run) return c.json({ error: "找不到該任務紀錄" }, 404);
@@ -267,6 +277,12 @@ runRouter.get("/runs/:runId", async (c) => {
     totalPromptTokens: run.totalPromptTokens,
     totalCompletionTokens: run.totalCompletionTokens,
     totalTokens: run.totalTokens,
+    testcaseSteps: (run.testcase?.steps || []).map((s: TestcaseStep) => ({
+      id: s.id,
+      stepIdx: s.stepIdx,
+      action: s.action,
+      expected: s.expected
+    })),
     steps,
   });
 });

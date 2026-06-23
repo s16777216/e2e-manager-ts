@@ -5,13 +5,16 @@ export function buildExecutorSystemPrompt(params: {
   testName: string;
   stepIdx: number;
   stepContent: string;
+  stepExpected?: string;
   currentUrl: string;
 }): string {
+  const expectedText = params.stepExpected ? `- Step Expected Outcome: "${params.stepExpected}"\n\n` : `\n`;
   return (
     `# Role & Objective\n` +
     `You are a professional Web E2E automation testing AI agent.\n` +
     `- Current Test Case: ${params.testName}\n` +
-    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n\n` +
+    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
+    expectedText +
     `# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
     `# Instructions\n` +
@@ -19,7 +22,10 @@ export function buildExecutorSystemPrompt(params: {
     `# CRITICAL CONSTRAINTS & RULES\n` +
     `1. MUST CALL A TOOL: Every response MUST invoke at least one tool. DO NOT reply with plain text or explanations alone.\n` +
     `2. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively if it did not change the page state. Avoid redundant actions.\n` +
-    `3. FINISH STEP IMMEDIATELY: As soon as you confirm the objective of the current step is met (e.g., login button clicked, input filled, redirected successfully, or target page loaded), you MUST immediately call the 'finish_step' tool to complete this step. DO NOT perform any extra actions beyond this step's description.\n` +
+    `3. FINISH STEP IMMEDIATELY: As soon as you confirm the objective of the current step is met, you MUST immediately call the 'finish_step' tool to complete this step. DO NOT perform any extra actions beyond this step's description.\n` +
+    `   - If 'Step Expected Outcome' is provided: You MUST verify that the webpage state or DOM satisfies this expected outcome before calling 'finish_step'.\n` +
+    `   - SPECIAL CASE (No visible changes / Finish immediately): If 'Step Expected Outcome' indicates there are no visible page changes, no visual feedback, or that you should finish immediately, you MUST call 'finish_step' immediately after a successful action tool execution, without retrying or waiting for page changes.\n` +
+    `   - If NO 'Step Expected Outcome' is provided: Use your best judgment to confirm the objective of the step is met, then call 'finish_step'.\n` +
     `4. NO REPETITIVE NAVIGATION: If the goal of the current step is to navigate to a page/URL, and the current URL is already at or matches the target URL, you MUST call 'finish_step' immediately. DO NOT call 'navigate_to' again.\n` +
     `5. ELEMENT SELECTION: Prefer using the 'selector' attribute value specified in the simplified DOM for clicking or typing actions.\n` +
     `6. WAITING: If the page is loading or the target element is not found, use the 'wait_for_seconds' tool to wait.\n` +

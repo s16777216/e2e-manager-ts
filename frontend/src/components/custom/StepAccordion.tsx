@@ -8,21 +8,64 @@ import {
   Image as ImageIcon,
   MessageSquare,
 } from "lucide-react";
-import type { TestRunStep } from "../../types/api";
+import type { TestRunStep, TestcaseStep } from "../../types/api";
 import { cn } from "../../lib/utils";
 
 interface StepAccordionProps {
   steps: TestRunStep[];
+  testcaseSteps?: TestcaseStep[];
   defaultOpenAll?: boolean;
 }
 
 export function StepAccordion({
   steps,
+  testcaseSteps = [],
   defaultOpenAll = false,
 }: StepAccordionProps) {
+  // 對齊靜態定義與動態執行紀錄
+  const alignedSteps = React.useMemo(() => {
+    if (!testcaseSteps || testcaseSteps.length === 0) {
+      return steps;
+    }
+
+    // 判斷是否已經有任何步驟出錯
+    const hasFailedStep = steps.some(
+      (s) => s.status === "failed" || s.status === "error",
+    );
+
+    return testcaseSteps.map((tcStep) => {
+      const matchedRunStep = steps.find((s) => s.stepIdx === tcStep.stepIdx);
+      if (matchedRunStep) {
+        return {
+          ...matchedRunStep,
+          stepExpected: tcStep.expected,
+        };
+      }
+
+      // 判定是否為已略過 (若前方有步驟失敗，或者整個執行已非 pending/running 結束)
+      const isSkipped =
+        hasFailedStep ||
+        (steps.length > 0 &&
+          steps.every((s) => s.status !== "running" && s.status !== "pending"));
+
+      return {
+        id: `tc-step-${tcStep.id}`,
+        stepIdx: tcStep.stepIdx,
+        stepDescription: tcStep.action,
+        status: isSkipped ? "skipped" : "pending",
+        screenshotUrl: null,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        logs: [],
+        stepExpected: tcStep.expected,
+      } as TestRunStep & { stepExpected?: string };
+    });
+  }, [steps, testcaseSteps]);
+
   return (
     <div className="space-y-4">
-      {steps.map((step) => (
+      {alignedSteps.map((step) => (
         <StepCard key={step.stepIdx} step={step} defaultOpen={defaultOpenAll} />
       ))}
     </div>
@@ -33,13 +76,13 @@ function StepCard({
   step,
   defaultOpen,
 }: {
-  step: TestRunStep;
+  step: TestRunStep & { stepExpected?: string };
   defaultOpen: boolean;
 }) {
-  // 直接使用結構化的 step.status 判定步驟的成敗狀態
   const hasError = step.status === "failed" || step.status === "error";
   const isPending = step.status === "pending";
   const isRunning = step.status === "running";
+  const isSkipped = step.status === "skipped";
 
   const [isOpen, setIsOpen] = useState(defaultOpen || isRunning || hasError);
 
@@ -63,15 +106,37 @@ function StepCard({
         "bg-zinc-900/40 border backdrop-blur-md rounded-xl transition-all duration-300",
         hasError
           ? "border-rose-500/40 bg-rose-950/5 shadow-rose-950/20"
-          : isOpen
-            ? "shadow-lg shadow-black/35 border-zinc-700/40"
-            : "border-zinc-800/80 hover:border-zinc-700/60",
+          : isRunning
+            ? "border-emerald-500/30 bg-zinc-900/60"
+            : isSkipped
+              ? "border-zinc-900/50 bg-zinc-950/20 opacity-50"
+              : isPending
+                ? "border-zinc-900/80 bg-zinc-950/30"
+                : isOpen
+                  ? "shadow-lg shadow-black/35 border-zinc-700/40"
+                  : "border-zinc-800/80 hover:border-zinc-700/60",
       )}
     >
       {/* Header */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
+        onClick={() => {
+          if (!isSkipped && !isPending) {
+            setIsOpen(!isOpen);
+          } else {
+            // 允許 pending 或 skipped 的步驟有 expected 時展開檢視 expected 資訊
+            if (step.stepExpected) {
+              setIsOpen(!isOpen);
+            }
+          }
+        }}
+        className={cn(
+          "flex items-center justify-between p-4 select-none transition-colors rounded-xl",
+          isSkipped || isPending
+            ? step.stepExpected
+              ? "cursor-pointer hover:bg-zinc-900/10"
+              : "cursor-not-allowed"
+            : "cursor-pointer hover:bg-zinc-900/30",
+        )}
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Status Icon */}
@@ -80,6 +145,8 @@ function StepCard({
               <XCircle className="w-5 h-5 text-rose-500" />
             ) : isRunning ? (
               <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+            ) : isSkipped ? (
+              <AlertCircle className="w-5 h-5 text-zinc-600" />
             ) : isPending ? (
               <AlertCircle className="w-5 h-5 text-zinc-500" />
             ) : (
@@ -88,16 +155,43 @@ function StepCard({
           </div>
 
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700/50">
+            <span
+              className={cn(
+                "flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold border",
+                isSkipped
+                  ? "bg-zinc-950 text-zinc-500 border-zinc-900"
+                  : "bg-zinc-800 text-zinc-300 border-zinc-700/50",
+              )}
+            >
               步驟 {step.stepIdx + 1}
             </span>
-            <span className="text-zinc-200 font-medium text-sm truncate">
+            <span
+              className={cn(
+                "font-medium text-sm truncate",
+                isSkipped
+                  ? "text-zinc-500"
+                  : isPending
+                    ? "text-zinc-400"
+                    : "text-zinc-200",
+              )}
+            >
               {step.stepDescription || "無步驟描述"}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {isSkipped && (
+            <span className="text-[9px] text-zinc-500 bg-zinc-950/60 px-2 py-0.5 rounded border border-zinc-900">
+              已略過
+            </span>
+          )}
+          {isPending && !isSkipped && (
+            <span className="text-[9px] text-zinc-500 bg-zinc-950/40 px-2 py-0.5 rounded border border-zinc-900/60 animate-pulse">
+              待執行
+            </span>
+          )}
+
           {totalTokens > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-zinc-300 bg-indigo-950/40 px-2.5 py-0.5 rounded-full border border-indigo-500/20 transition-all duration-300 hover:border-indigo-400/40 hover:bg-indigo-900/30">
               {step.totalTokens} Tokens
@@ -110,12 +204,14 @@ function StepCard({
               截圖
             </span>
           )}
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 text-zinc-400 transition-transform duration-300",
-              isOpen && "transform rotate-180 text-zinc-200",
-            )}
-          />
+          {((step.logs?.length || 0) > 0 || step.stepExpected) && (
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-zinc-400 transition-transform duration-300",
+                isOpen && "transform rotate-180 text-zinc-200",
+              )}
+            />
+          )}
         </div>
       </div>
 
@@ -127,15 +223,23 @@ function StepCard({
         )}
       >
         {!step.logs || step.logs.length === 0 ? (
-          <div className="text-zinc-500 text-xs italic pl-8 py-2">
-            尚未開始執行動作。
+          <div className="text-zinc-500 text-xs italic pl-8 py-2 flex flex-col gap-2">
+            <div>{isSkipped ? "此步驟已被略過。" : "尚未開始執行動作。"}</div>
+            {step.stepExpected && (
+              <div className="text-[11px] text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-900 max-w-xl not-italic mt-1">
+                <span className="font-semibold text-zinc-500 block mb-1 text-[10px] uppercase tracking-wider">
+                  預期完成結果：
+                </span>
+                <span className="text-zinc-300">{step.stepExpected}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative pl-6 space-y-6">
             {/* Timeline Vertical Line */}
             <div className="absolute top-1.5 bottom-1.5 left-2.5 w-0.5 bg-zinc-800/60" />
 
-            {step.logs.map((log, index) => {
+            {step.logs?.map((log, index) => {
               const logHasError =
                 log.result?.toLowerCase().includes("fail") ||
                 log.result?.toLowerCase().includes("error");
@@ -144,7 +248,7 @@ function StepCard({
                 log.result?.toLowerCase() === "running";
 
               return (
-                <div key={log.id || index} className="relative group/item">
+                <div key={log.id || index} className="relative group/item animate-fadeIn">
                   {/* Timeline Dot */}
                   <div
                     className={cn(
@@ -181,7 +285,7 @@ function StepCard({
 
                     {/* AI Response Card */}
                     {log.aiResponse && (
-                      <div className="bg-indigo-950/10 text-indigo-300/90 border border-indigo-900/30 rounded-lg p-3 text-xs space-y-1.5 leading-relaxed mt-2">
+                      <div className="bg-indigo-950/10 text-indigo-300/90 border border-indigo-900/30 rounded-lg p-3 text-xs space-y-1.5 leading-relaxed mt-2 animate-fadeIn">
                         <div className="flex items-center gap-1.5 font-medium text-[11px] text-indigo-400">
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>AI 推理分析</span>
@@ -195,6 +299,18 @@ function StepCard({
                 </div>
               );
             })}
+
+            {/* 若執行完畢且有 expected 資訊，在時間軸底端渲染預期成果 */}
+            {step.stepExpected && (
+              <div className="relative group/item mt-4 pt-2 border-t border-zinc-900/60 animate-fadeIn">
+                <div className="text-[11px] text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-900 max-w-xl">
+                  <span className="font-semibold text-zinc-500 block mb-1 text-[10px] uppercase tracking-wider">
+                    此步驟預期完成結果：
+                  </span>
+                  <span className="text-zinc-300">{step.stepExpected}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -205,15 +321,15 @@ function StepCard({
               <ImageIcon className="w-3.5 h-3.5 text-zinc-500" />
               <span>步驟執行截圖</span>
             </div>
-            <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img">
+            <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img shadow-md">
               <img
                 src={step.screenshotUrl}
                 alt={`Step ${step.stepIdx} Screenshot`}
                 className="w-full h-auto object-contain transition-transform duration-500 group-hover/img:scale-[1.01] cursor-zoom-in"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none flex items-end p-2">
-                <span className="text-[10px] text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700/30">
-                  步驟 {step.stepIdx} 最終狀態畫面
+                <span className="text-[10px] text-zinc-300 bg-zinc-900/90 px-2 py-1 rounded border border-zinc-700/30 font-mono">
+                  步驟 {step.stepIdx + 1} 最終狀態畫面
                 </span>
               </div>
             </div>
@@ -223,3 +339,4 @@ function StepCard({
     </div>
   );
 }
+

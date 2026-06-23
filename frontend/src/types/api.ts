@@ -22,10 +22,17 @@ export interface TestGroup {
   initLocalStorage?: LocalStorageData | null;
 }
 
+export interface TestcaseStep {
+  id: string;
+  stepIdx: number;
+  action: string;
+  expected?: string;
+}
+
 export interface Testcase {
   id: string;
   name: string;
-  steps: string[];
+  steps: TestcaseStep[];
   expected: string;
   createdAt: string;
   group?: TestGroup;
@@ -45,6 +52,7 @@ export interface TestRun {
   finalReason?: string;
   screenshotFailUrl?: string;
   steps?: TestRunStep[];
+  testcaseSteps?: TestcaseStep[];
   asserterPromptTokens?: number;
   asserterCompletionTokens?: number;
   asserterTotalTokens?: number;
@@ -57,7 +65,7 @@ export interface TestRunStep {
   id: string;
   stepIdx: number;
   stepDescription: string;
-  status: "pending" | "running" | "passed" | "failed" | "error";
+  status: "pending" | "running" | "passed" | "failed" | "error" | "skipped";
   screenshotUrl?: string | null;
   promptTokens?: number;
   completionTokens?: number;

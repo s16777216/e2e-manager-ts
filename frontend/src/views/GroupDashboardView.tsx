@@ -1,13 +1,13 @@
-import { useState } from "react"
-import { useParams, useNavigate, useOutletContext } from "react-router-dom"
-import { Plus, Trash2, Edit2, Play, FileText, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { useTestcaseData } from "../hooks/useTestcaseData"
-import { useSSEStream } from "../hooks/useSSEStream"
-import type { TestGroup, Testcase } from "../types/api"
+import { useState } from "react";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
+import { Plus, Trash2, Edit2, Play, FileText, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTestcaseData } from "../hooks/useTestcaseData";
+import { useSSEStream } from "../hooks/useSSEStream";
+import type { TestGroup, Testcase, TestcaseStep } from "../types/api";
 
 export default function GroupDashboardView() {
   const { groupId, projectId } = useParams();
@@ -15,10 +15,11 @@ export default function GroupDashboardView() {
   const { groups } = useOutletContext<{ groups: TestGroup[] }>();
 
   // 取得選定群組名稱
-  const activeGroup = groups.find(g => g.id === groupId);
+  const activeGroup = groups.find((g) => g.id === groupId);
 
   // 測試案例資料載入
-  const { testcases, handleSaveTestcase, handleDeleteTestcase } = useTestcaseData(groupId);
+  const { testcases, handleSaveTestcase, handleDeleteTestcase } =
+    useTestcaseData(groupId);
 
   // 測試啟動邏輯 (SSE 觸發但轉導由 Router 完成)
   const { triggerRun } = useSSEStream(undefined); // 這裡我們只用 triggerRun，不需要在此頁面監控
@@ -29,7 +30,9 @@ export default function GroupDashboardView() {
   const [editingTcId, setEditingTcId] = useState<string | null>(null);
 
   const [tcName, setTcName] = useState("");
-  const [tcSteps, setTcSteps] = useState<string[]>([""]);
+  const [tcSteps, setTcSteps] = useState<
+    Array<{ action: string; expected?: string }>
+  >([{ action: "" }]);
   const [tcExpected, setTcExpected] = useState("");
 
   const [isTriggering, setIsTriggering] = useState<string | null>(null);
@@ -45,7 +48,7 @@ export default function GroupDashboardView() {
 
   // 表單 Zod 步驟增減
   const handleAddStepInput = () => {
-    setTcSteps([...tcSteps, ""]);
+    setTcSteps([...tcSteps, { action: "" }]);
   };
 
   const handleRemoveStepInput = (index: number) => {
@@ -55,15 +58,26 @@ export default function GroupDashboardView() {
     setTcSteps(newSteps);
   };
 
-  const handleStepValueChange = (index: number, val: string) => {
+  const handleStepActionChange = (index: number, val: string) => {
     const newSteps = [...tcSteps];
-    newSteps[index] = val;
+    newSteps[index] = { ...newSteps[index], action: val };
+    setTcSteps(newSteps);
+  };
+
+  const handleStepExpectedChange = (index: number, val: string) => {
+    const newSteps = [...tcSteps];
+    newSteps[index] = { ...newSteps[index], expected: val };
     setTcSteps(newSteps);
   };
 
   // 儲存測試案例
   const handleSave = async () => {
-    const res = await handleSaveTestcase(editingTcId, tcName, tcSteps, tcExpected);
+    const res = await handleSaveTestcase(
+      editingTcId,
+      tcName,
+      tcSteps,
+      tcExpected,
+    );
     if (res) {
       setShowNewTestcaseForm(false);
       setIsEditingTestcase(false);
@@ -74,7 +88,9 @@ export default function GroupDashboardView() {
   // 開始編輯測試案例
   const startEdit = (tc: Testcase) => {
     setTcName(tc.name);
-    setTcSteps(tc.steps);
+    setTcSteps(
+      (tc.steps || []).map((s) => ({ action: s.action, expected: s.expected })),
+    );
     setTcExpected(tc.expected);
     setEditingTcId(tc.id);
     setIsEditingTestcase(true);
@@ -109,7 +125,6 @@ export default function GroupDashboardView() {
       <ScrollArea className="flex-1">
         <div className="p-6">
           <div className="flex flex-col gap-6">
-            
             {/* 頂部操作欄 */}
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -118,7 +133,7 @@ export default function GroupDashboardView() {
               <Button
                 onClick={() => {
                   setTcName("");
-                  setTcSteps([""]);
+                  setTcSteps([{ action: "" }]);
                   setTcExpected("");
                   setEditingTcId(null);
                   setIsEditingTestcase(false);
@@ -157,36 +172,54 @@ export default function GroupDashboardView() {
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                       測試步驟 (自然語言描述)
                     </label>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                       {tcSteps.map((step, idx) => (
-                        <div key={idx} className="flex gap-2">
-                          <span className="flex items-center justify-center bg-zinc-900 border border-zinc-800 text-[10px] text-muted-foreground rounded px-2 w-7 font-mono">
-                            {idx + 1}
-                          </span>
-                          <Input
-                            type="text"
-                            value={step}
-                            onChange={(e) => handleStepValueChange(idx, e.target.value)}
-                            placeholder="例如: 進入 https://zh.wikipedia.org/ 並搜尋 Gemini"
-                            className="flex-1"
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleRemoveStepInput(idx)}
-                            className="border-zinc-800 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 size={12} />
-                          </Button>
+                        <div
+                          key={idx}
+                          className="flex flex-col gap-2 p-2.5 bg-zinc-950/60 border border-zinc-850 rounded-xl"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center bg-zinc-900 border border-zinc-800 text-[10px] text-muted-foreground rounded h-8 w-8 font-mono shrink-0">
+                              {idx + 1}
+                            </span>
+                            <Input
+                              type="text"
+                              value={step.action}
+                              onChange={(e) =>
+                                handleStepActionChange(idx, e.target.value)
+                              }
+                              placeholder="操作描述（必填）"
+                              className="flex-1 h-8 text-xs focus-visible:ring-emerald-500"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleRemoveStepInput(idx)}
+                              className="border-zinc-800 hover:bg-destructive/10 text-muted-foreground hover:text-destructive h-8 w-8"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
+                          <div className="pl-10">
+                            <Input
+                              type="text"
+                              value={step.expected || ""}
+                              onChange={(e) =>
+                                handleStepExpectedChange(idx, e.target.value)
+                              }
+                              placeholder="步驟預期結果（選填，無變化請填：直接完成）"
+                              className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
+                            />
+                          </div>
                         </div>
                       ))}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handleAddStepInput}
-                        className="self-start text-[10px]"
+                        className="self-start text-[10px] hover:bg-zinc-900 text-zinc-300"
                       >
-                        <Plus size={10} /> 新增下一步
+                        <Plus size={10} className="mr-1" /> 新增下一步
                       </Button>
                     </div>
                   </div>
@@ -218,9 +251,7 @@ export default function GroupDashboardView() {
                   >
                     取消
                   </Button>
-                  <Button onClick={handleSave}>
-                    儲存測試案例
-                  </Button>
+                  <Button onClick={handleSave}>儲存測試案例</Button>
                 </div>
               </div>
             )}
@@ -239,8 +270,12 @@ export default function GroupDashboardView() {
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-sm font-bold text-foreground">{tc.name}</h4>
-                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">ID: {tc.id}</p>
+                        <h4 className="text-sm font-bold text-foreground">
+                          {tc.name}
+                        </h4>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                          ID: {tc.id}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Button
@@ -280,13 +315,30 @@ export default function GroupDashboardView() {
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         步驟詳情
                       </span>
-                      <div className="mt-1.5 flex flex-col gap-1.5">
-                        {tc.steps.map((step: string, idx: number) => (
-                          <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="h-4 w-4 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[9px] font-bold">
-                              {idx + 1}
-                            </span>
-                            <span>{step}</span>
+                      <div className="mt-1.5 flex flex-col gap-2">
+                        {tc.steps.map((step: TestcaseStep, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex flex-col gap-1 p-2 bg-zinc-950/40 border border-zinc-900 rounded-lg"
+                          >
+                            <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                              <span className="h-4 w-4 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[9px] font-bold mt-0.5 shrink-0">
+                                {idx + 1}
+                              </span>
+                              <div className="flex-1">
+                                <span className="text-zinc-200">
+                                  {step.action}
+                                </span>
+                                {step.expected && (
+                                  <p className="text-[10px] text-zinc-500 italic mt-0.5">
+                                    預期:{" "}
+                                    <span className="text-zinc-400 not-italic">
+                                      {step.expected}
+                                    </span>
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -296,13 +348,14 @@ export default function GroupDashboardView() {
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         預期結果
                       </span>
-                      <p className="text-xs text-foreground mt-1">{tc.expected}</p>
+                      <p className="text-xs text-foreground mt-1">
+                        {tc.expected}
+                      </p>
                     </div>
                   </div>
                 ))
               )}
             </div>
-
           </div>
         </div>
       </ScrollArea>

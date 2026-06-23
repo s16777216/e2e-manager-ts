@@ -104,11 +104,14 @@ export class E2EGraphBuilder {
     const simplified_dom = await this.browserManager.getSimplifiedDOM();
     const current_url = this.browserManager.page ? this.browserManager.page.url() : "";
 
+    const step_expected = state.step_expecteds[idx] || "";
+
     // 2. 建構系統 Prompt
     const system_prompt = buildExecutorSystemPrompt({
       testName: state.test_name,
       stepIdx: idx,
       stepContent: step_content,
+      stepExpected: step_expected,
       currentUrl: current_url
     });
 

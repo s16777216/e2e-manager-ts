@@ -18,6 +18,7 @@ export const TestState = Annotation.Root({
   test_id: Annotation<string>(),
   test_name: Annotation<string>(),
   steps: Annotation<string[]>(),
+  step_expecteds: Annotation<string[]>(),
   expected: Annotation<string>(),
   
   // 執行過程狀態

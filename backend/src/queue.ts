@@ -97,7 +97,12 @@ export class TaskQueue {
     const testcaseRepo = AppDataSource.getRepository(Testcase);
     const fullTestcase = await testcaseRepo.findOne({
       where: { id: testcase.id },
-      relations: { group: true }
+      relations: { group: true, steps: true },
+      order: {
+        steps: {
+          stepIdx: "ASC"
+        }
+      }
     });
 
     if (!fullTestcase) {
@@ -202,11 +207,15 @@ export class TaskQueue {
       const builder = new E2EGraphBuilder(browserManager);
       const graph = builder.buildGraph();
 
+      const stepsArray = (fullTestcase.steps || []).map(s => s.action);
+      const expectedsArray = (fullTestcase.steps || []).map(s => s.expected || "");
+
       const initial_state = {
         run_id: run.id,
         test_id: testcase.id,
         test_name: testcase.name,
-        steps: testcase.steps,
+        steps: stepsArray,
+        step_expecteds: expectedsArray,
         expected: testcase.expected,
         current_step_idx: 0,
         step_retry_count: 0,

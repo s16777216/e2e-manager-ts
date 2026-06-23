@@ -9,6 +9,7 @@ import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
 import { Task } from "./entities/Task.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
+import { TestcaseStep } from "./entities/TestcaseStep.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   url: databaseUrl || "postgres://postgres:postgres@localhost:5432/e2e_manager",
   synchronize: true, // 自動同步 Schema 到資料庫
   logging: false,
-  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep],
+  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep, TestcaseStep],
   extra: {
     max: 1, // 限制連線池大小為 1，防範 WSL2 Mirrored 網路的 TCP 重複連線 bug
   },
@@ -31,6 +32,35 @@ export const AppDataSource = new DataSource({
 export async function initDB() {
   console.log("[DB] 正在初始化資料庫連線... URL 為:", (AppDataSource.options as any).url || (AppDataSource.options as any).host);
   
+  // 自動資料遷移備份
+  let migratedStepsBackup: Array<{ id: string; steps: any }> = [];
+  const tempDS = new DataSource({
+    type: "postgres",
+    url: databaseUrl || "postgres://postgres:postgres@localhost:5432/e2e_manager",
+    synchronize: false,
+    logging: false,
+    extra: { max: 1 }
+  });
+  try {
+    await tempDS.initialize();
+    const queryRunner = tempDS.createQueryRunner();
+    const tableExists = await queryRunner.hasTable("testcase");
+    if (tableExists) {
+      const tableHasSteps = await queryRunner.hasColumn("testcase", "steps");
+      if (tableHasSteps) {
+        console.log("[DB Migration] 檢測到舊有的 simple-json steps 欄位，正在讀取並備份測試案例步驟...");
+        migratedStepsBackup = await queryRunner.query(`SELECT id, steps FROM testcase WHERE steps IS NOT NULL`);
+      }
+    }
+    await queryRunner.release();
+  } catch (e: any) {
+    console.error("[DB Migration] 臨時資料備份失敗：", e.message);
+  } finally {
+    if (tempDS.isInitialized) {
+      await tempDS.destroy();
+    }
+  }
+
   let retries = 5;
   while (retries > 0) {
     try {
@@ -45,6 +75,43 @@ export async function initDB() {
   }
   
   console.log("[DB] 資料庫連線初始化成功。");
+
+  // 寫入步驟遷移資料
+  if (migratedStepsBackup.length > 0) {
+    console.log(`[DB Migration] 發現 ${migratedStepsBackup.length} 筆測試案例需要步驟遷移...`);
+    try {
+      const testcaseStepRepo = AppDataSource.getRepository(TestcaseStep);
+      for (const item of migratedStepsBackup) {
+        let stepsArray: any[] = [];
+        try {
+          stepsArray = typeof item.steps === "string" ? JSON.parse(item.steps) : item.steps;
+        } catch (e) {
+          console.error(`[DB Migration] 解析 id 為 ${item.id} 的 steps 欄位失敗:`, e);
+        }
+        if (Array.isArray(stepsArray)) {
+          const existingCount = await testcaseStepRepo.count({ where: { testcase: { id: item.id } } });
+          if (existingCount === 0) {
+            console.log(`[DB Migration] 正在為測試案例 (ID: ${item.id}) 寫入 ${stepsArray.length} 個步驟...`);
+            for (let i = 0; i < stepsArray.length; i++) {
+              const stepText = stepsArray[i];
+              if (typeof stepText === "string" && stepText.trim() !== "") {
+                const stepEntity = new TestcaseStep();
+                stepEntity.testcase = { id: item.id } as any;
+                stepEntity.stepIdx = i;
+                stepEntity.action = stepText;
+                await testcaseStepRepo.save(stepEntity);
+              }
+            }
+          } else {
+            console.log(`[DB Migration] 測試案例 (ID: ${item.id}) 已有步驟定義，跳過寫入。`);
+          }
+        }
+      }
+      console.log("[DB Migration] 資料遷移完成。");
+    } catch (migrationErr: any) {
+      console.error("[DB Migration] 寫入步驟遷移資料時發生錯誤：", migrationErr.message);
+    }
+  }
 
   // 執行啟動修復邏輯：將狀態處於 running 或 pending 的任務重置為 error
   console.log("[DB] 正在檢查並清理異常遺留的任務...");

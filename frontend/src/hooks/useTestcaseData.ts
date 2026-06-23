@@ -23,28 +23,33 @@ export function useTestcaseData(groupId: string | undefined) {
   const handleSaveTestcase = async (
     testcaseId: string | null,
     name: string,
-    steps: string[],
+    steps: Array<{ action: string; expected?: string }>,
     expected: string
   ) => {
     if (!groupId) return null
-    if (!name.trim() || steps.some(s => !s.trim()) || !expected.trim()) {
+    if (!name.trim() || steps.some(s => !s.action.trim()) || !expected.trim()) {
       toast.error("請填寫所有必填欄位，且步驟不可為空！")
       return null
     }
 
     try {
       let result: Testcase
+      const formattedSteps = steps.map(s => ({
+        action: s.action.trim(),
+        expected: s.expected?.trim() || undefined
+      }))
+
       if (testcaseId) {
         result = await api.updateTestcase(testcaseId, {
           name: name.trim(),
-          steps: steps.map(s => s.trim()),
+          steps: formattedSteps,
           expected: expected.trim()
         })
         toast.success("測試案例修改成功！")
       } else {
         result = await api.createTestcase(groupId, {
           name: name.trim(),
-          steps: steps.map(s => s.trim()),
+          steps: formattedSteps,
           expected: expected.trim()
         })
         toast.success("測試案例建立成功！")
