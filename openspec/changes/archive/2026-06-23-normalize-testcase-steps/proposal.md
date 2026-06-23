@@ -7,7 +7,7 @@
 ## What Changes
 
 1. **資料結構正規化**：
-   - 新增靜態測試步驟實體表 `TestcaseStep`，儲存各步的操作描述 (`action`)、預期結果 (`expected`，選填) 與順序索引 (`stepIdx`)。
+   - 新增靜態測試步驟實體表 `TestcaseStep`，儲存各步的操作描述 (`action`)、預期結果 (`expected`，選填)、是否啟用預期結果 (`hasExpected`) 與順序索引 (`stepIdx`)。
    - 將 `Testcase.steps` 從 `simple-json` 欄位重構為與 `TestcaseStep` 關聯的一對多關係。
    - 提供伺服器啟動時的自動資料遷移 (Migration) 機制，確保舊 `simple-json` 資料無痛轉換到新表。
 2. **AI Agent 執行機制升級 (步步斷言)**：
@@ -16,7 +16,7 @@
 3. **控制台動靜態步驟對齊**：
    - 前端控制台整合 `TestcaseStep` (定義) 與 `TestRunStep` (執行紀錄)，對未執行、略過或未完成的步驟，於 UI 渲染為灰色 Pending/Skipped 狀態，不再直接消失。
 4. **測試案例編輯器更新**：
-   - 更新測試案例的建立與編輯介面，支援對每個步驟分別設定「步驟操作描述」與「步驟預期結果」。
+   - 更新測試案例的建立與編輯介面，在每個步驟配置「步驟操作描述」與以 `Switch` 控制顯示/隱藏的「步驟預期結果」輸入框，支援輸入暫存。
 
 ## Capabilities
 

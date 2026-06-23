@@ -23,7 +23,7 @@ export function useTestcaseData(groupId: string | undefined) {
   const handleSaveTestcase = async (
     testcaseId: string | null,
     name: string,
-    steps: Array<{ action: string; expected?: string }>,
+    steps: Array<{ action: string; expected?: string; hasExpected?: boolean }>,
     expected: string
   ) => {
     if (!groupId) return null
@@ -36,7 +36,8 @@ export function useTestcaseData(groupId: string | undefined) {
       let result: Testcase
       const formattedSteps = steps.map(s => ({
         action: s.action.trim(),
-        expected: s.expected?.trim() || undefined
+        expected: s.hasExpected ? (s.expected?.trim() || "") : "",
+        hasExpected: !!s.hasExpected
       }))
 
       if (testcaseId) {

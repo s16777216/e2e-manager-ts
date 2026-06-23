@@ -27,6 +27,7 @@ export interface TestcaseStep {
   stepIdx: number;
   action: string;
   expected?: string;
+  hasExpected: boolean;
 }
 
 export interface Testcase {

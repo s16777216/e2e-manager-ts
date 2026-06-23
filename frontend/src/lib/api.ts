@@ -96,7 +96,7 @@ export const api = {
     groupId: string,
     data: {
       name: string;
-      steps: Array<{ action: string; expected?: string }>;
+      steps: Array<{ action: string; expected?: string; hasExpected: boolean }>;
       expected: string;
       initCookies?: unknown;
       initLocalStorage?: unknown;
@@ -110,7 +110,7 @@ export const api = {
     testcaseId: string,
     data: {
       name?: string;
-      steps?: Array<{ action: string; expected?: string }>;
+      steps?: Array<{ action: string; expected?: string; hasExpected: boolean }>;
       expected?: string;
       initCookies?: unknown;
       initLocalStorage?: unknown;

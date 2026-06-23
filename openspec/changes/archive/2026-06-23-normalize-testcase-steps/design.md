@@ -40,6 +40,9 @@
     @Column("text", { nullable: true })
     expected?: string; // 步驟預期結果（選填）
 
+    @Column("boolean", { default: false })
+    hasExpected!: boolean; // 是否啟用預期結果（預設為 false）
+
     @CreateDateColumn()
     createdAt!: Date;
 
@@ -72,6 +75,11 @@
 * 前端進入控制台頁面（`SSEConsoleView`）時，同時獲取該測試案例的靜態 `testcase.steps` 定義（包含 id、action、expected）。
 * 渲染時，將動態接收到的 `TestRunStep`（以 `stepIdx` 對照）填入靜態步驟中。
 * 如果某步驟還沒有動態的 `TestRunStep` 紀錄，則在畫面上渲染為灰色不可展開的 **「未執行 / 略過 (Pending / Skipped)」** 狀態，以補齊控制台的視覺完整度。
+
+### 5. 獨立欄位 hasExpected 與 Switch UX 交互設計
+* **暫存優化 (Local Buffer)**：當使用者在前端編輯測試步驟時，每個步驟卡片都有一個 `<Switch>` 元件來啟用或關閉該步驟的「預期結果」。
+* **顯示與隱藏**：若 `hasExpected` 為 `true`，顯示預期結果輸入框；若為 `false`，則將輸入框隱藏，但仍保留前端變數中 `expected` 的輸入內容，以防使用者不小心關閉後再次開啟時需要重新輸入。
+* **儲存邏輯 (Persistence)**：在呼叫後端 API 儲存或更新測試案例時，若 `hasExpected` 為 `false`，則強制將 `expected` 欄位設為空字串或 `undefined` 送至後端，以確保資料庫中不會殘留已關閉的預期結果文字，而當 `hasExpected` 為 `true` 時則會提交經過 trim 處理的預期結果文字。
 
 ## Risks / Trade-offs
 

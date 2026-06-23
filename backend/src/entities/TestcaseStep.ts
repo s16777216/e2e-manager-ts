@@ -15,6 +15,9 @@ export class TestcaseStep {
   @Column("text", { nullable: true })
   expected?: string;
 
+  @Column("boolean", { default: false })
+  hasExpected!: boolean;
+
   @ManyToOne(() => Testcase, testcase => testcase.steps, { onDelete: "CASCADE" })
   testcase!: Testcase;
 

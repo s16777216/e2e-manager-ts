@@ -281,7 +281,8 @@ runRouter.get("/runs/:runId", async (c) => {
       id: s.id,
       stepIdx: s.stepIdx,
       action: s.action,
-      expected: s.expected
+      expected: s.expected,
+      hasExpected: s.hasExpected
     })),
     steps,
   });

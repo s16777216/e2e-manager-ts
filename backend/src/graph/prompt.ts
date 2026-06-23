@@ -24,8 +24,8 @@ export function buildExecutorSystemPrompt(params: {
     `2. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively if it did not change the page state. Avoid redundant actions.\n` +
     `3. FINISH STEP IMMEDIATELY: As soon as you confirm the objective of the current step is met, you MUST immediately call the 'finish_step' tool to complete this step. DO NOT perform any extra actions beyond this step's description.\n` +
     `   - If 'Step Expected Outcome' is provided: You MUST verify that the webpage state or DOM satisfies this expected outcome before calling 'finish_step'.\n` +
-    `   - SPECIAL CASE (No visible changes / Finish immediately): If 'Step Expected Outcome' indicates there are no visible page changes, no visual feedback, or that you should finish immediately, you MUST call 'finish_step' immediately after a successful action tool execution, without retrying or waiting for page changes.\n` +
-    `   - If NO 'Step Expected Outcome' is provided: Use your best judgment to confirm the objective of the step is met, then call 'finish_step'.\n` +
+    `     * SPECIAL CASE (No visible changes): If the outcome indicates there are no visible page changes, or that you should finish immediately, call 'finish_step' immediately after the action tool executes successfully.\n` +
+    `   - If NO 'Step Expected Outcome' is provided: DO NOT perform any state or content validation. Once your action tool (e.g., clicking a button, typing in an input, or waiting) executes successfully with no error message, you MUST call 'finish_step' immediately to finish the step. DO NOT repeat the same action.\n` +
     `4. NO REPETITIVE NAVIGATION: If the goal of the current step is to navigate to a page/URL, and the current URL is already at or matches the target URL, you MUST call 'finish_step' immediately. DO NOT call 'navigate_to' again.\n` +
     `5. ELEMENT SELECTION: Prefer using the 'selector' attribute value specified in the simplified DOM for clicking or typing actions.\n` +
     `6. WAITING: If the page is loading or the target element is not found, use the 'wait_for_seconds' tool to wait.\n` +

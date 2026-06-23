@@ -55,6 +55,7 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
     step.stepIdx = idx;
     step.action = typeof s === "string" ? s : s.action;
     step.expected = typeof s === "string" ? undefined : (s.expected || undefined);
+    step.hasExpected = typeof s === "string" ? false : !!s.hasExpected;
     return step;
   });
 
@@ -101,6 +102,7 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
         step.stepIdx = idx;
         step.action = typeof s === "string" ? s : s.action;
         step.expected = typeof s === "string" ? undefined : (s.expected || undefined);
+        step.hasExpected = typeof s === "string" ? false : !!s.hasExpected;
         return step;
       });
 

@@ -7,6 +7,8 @@ import { NewSubgroupDialog } from "../components/custom/NewSubgroupDialog"
 import { api } from "../lib/api"
 import { Plus, Sparkles, Trash2, Loader2, Play, Edit2, AlertTriangle, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -120,7 +122,7 @@ export default function ProjectDetailView() {
   // 2. 新增測試案例彈窗狀態
   const [showNewTestCaseModal, setShowNewTestCaseModal] = useState(false)
   const [tcName, setTcName] = useState("")
-  const [tcSteps, setTcSteps] = useState<Array<{ action: string; expected?: string }>>([{ action: "" }])
+  const [tcSteps, setTcSteps] = useState<Array<{ action: string; expected?: string; hasExpected?: boolean }>>([{ action: "", expected: "", hasExpected: false }])
   const [tcExpected, setTcExpected] = useState("")
   const [targetGroupId, setTargetGroupId] = useState("")
   const [isSavingTestCase, setIsSavingTestCase] = useState(false)
@@ -332,7 +334,7 @@ export default function ProjectDetailView() {
 
   // 測試案例步驟表單增減
   const handleAddStepInput = () => {
-    setTcSteps([...tcSteps, { action: "" }])
+    setTcSteps([...tcSteps, { action: "", expected: "", hasExpected: false }])
   }
 
   const handleRemoveStepInput = (index: number) => {
@@ -374,7 +376,8 @@ export default function ProjectDetailView() {
         name: tcName.trim(),
         steps: tcSteps.map((s) => ({
           action: s.action.trim(),
-          expected: s.expected?.trim() || undefined
+          expected: s.hasExpected ? (s.expected?.trim() || "") : "",
+          hasExpected: !!s.hasExpected,
         })),
         expected: tcExpected.trim(),
         initCookies: tcInitCookies,
@@ -384,7 +387,7 @@ export default function ProjectDetailView() {
       
       // 重置 Form 狀態
       setTcName("")
-      setTcSteps([{ action: "" }])
+      setTcSteps([{ action: "", expected: "", hasExpected: false }])
       setTcExpected("")
       setShowNewTestCaseModal(false)
 
@@ -622,6 +625,23 @@ export default function ProjectDetailView() {
                         placeholder="操作描述（必填，如：點擊 '送出' 按鈕）"
                         className="flex-1 bg-zinc-950 border-zinc-800 text-zinc-100 h-8 text-xs focus-visible:ring-emerald-500"
                       />
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`expected-${idx}`}
+                          checked={!!step.hasExpected}
+                          onCheckedChange={(checked) => {
+                            const newSteps = [...tcSteps]
+                            newSteps[idx].hasExpected = checked
+                            setTcSteps(newSteps)
+                          }}
+                        />
+                        <Label
+                          htmlFor={`expected-${idx}`}
+                          className="text-zinc-400 text-xs cursor-pointer select-none"
+                        >
+                          預期結果
+                        </Label>
+                      </div>
                       <Button
                         variant="outline"
                         size="icon"
@@ -631,15 +651,17 @@ export default function ProjectDetailView() {
                         <Trash2 size={12} />
                       </Button>
                     </div>
-                    <div className="pl-10">
-                      <Input
-                        type="text"
-                        value={step.expected || ""}
-                        onChange={(e) => handleStepExpectedChange(idx, e.target.value)}
-                        placeholder="步驟預期結果（選填，無變化請填：直接完成）"
-                        className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
-                      />
-                    </div>
+                    {step.hasExpected && (
+                      <div className="pl-10 animate-fadeIn">
+                        <Input
+                          type="text"
+                          value={step.expected || ""}
+                          onChange={(e) => handleStepExpectedChange(idx, e.target.value)}
+                          placeholder="步驟預期結果（選填，無變化請填：直接完成）"
+                          className="bg-zinc-950/40 border-zinc-900 text-zinc-400 h-7 text-[11px] placeholder:text-zinc-600 focus-visible:ring-emerald-600"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
