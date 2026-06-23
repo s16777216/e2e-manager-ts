@@ -5,14 +5,46 @@ import { toast } from "sonner"
 
 export function useGroupData(projectId: string | undefined) {
   const [groups, setGroups] = useState<TestGroup[]>([])
+  const [groupTree, setGroupTree] = useState<TestGroup[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(false)
+
+  // 遞迴處理樹狀結構，補全 parentId 並扁平化收集至一維陣列
+  const processGroupTree = (
+    nodes: TestGroup[],
+    parentId: string | null = null
+  ): { tree: TestGroup[]; flat: TestGroup[] } => {
+    let flat: TestGroup[] = []
+    const tree = nodes.map((node) => {
+      const currentParentId = node.parentId || node.parent?.id || parentId
+      const mappedNode: TestGroup = {
+        ...node,
+        parentId: currentParentId,
+      }
+
+      flat.push(mappedNode)
+
+      if (node.children && node.children.length > 0) {
+        const result = processGroupTree(node.children, node.id)
+        mappedNode.children = result.tree
+        flat = flat.concat(result.flat)
+      } else {
+        mappedNode.children = []
+      }
+
+      return mappedNode
+    })
+
+    return { tree, flat }
+  }
 
   const loadGroups = async (projId: string) => {
     setIsLoading(true)
     try {
       const data = await api.getGroups(projId)
-      setGroups(data)
+      const { tree, flat } = processGroupTree(data)
+      setGroupTree(tree)
+      setGroups(flat)
     } catch (err) {
       console.error(err)
       toast.error("載入群組失敗")
@@ -56,6 +88,7 @@ export function useGroupData(projectId: string | undefined) {
           loadGroups(projectId)
         } else {
           setGroups([])
+          setGroupTree([])
         }
       }
     })
@@ -63,26 +96,6 @@ export function useGroupData(projectId: string | undefined) {
       active = false
     }
   }, [projectId])
-
-  // 遞迴建構樹狀結構
-  const buildGroupTree = (groupList: TestGroup[]): (TestGroup & { children: TestGroup[] })[] => {
-    const map = new Map<string, TestGroup & { children: TestGroup[] }>()
-    groupList.forEach(g => {
-      map.set(g.id, { ...g, children: [] })
-    })
-
-    const roots: (TestGroup & { children: TestGroup[] })[] = []
-    map.forEach(g => {
-      if (g.parentId && map.has(g.parentId)) {
-        map.get(g.parentId)!.children.push(g)
-      } else {
-        roots.push(g)
-      }
-    })
-    return roots
-  }
-
-  const groupTree = buildGroupTree(groups)
 
   return {
     groups,

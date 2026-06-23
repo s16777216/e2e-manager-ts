@@ -517,6 +517,9 @@ export default function ProjectDetailView() {
         onCreateGroup={async (name, parentId, initCookies, initLocalStorage) => {
           const res = await handleCreateSubgroup(name, parentId, initCookies, initLocalStorage)
           if (res) {
+            if (parentId) {
+              setExpandedGroups((prev) => ({ ...prev, [parentId]: true }))
+            }
             setShowNewGroupModal(false)
           }
         }}
