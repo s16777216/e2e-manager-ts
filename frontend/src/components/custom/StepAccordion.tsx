@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { ChevronDown, CheckCircle2, XCircle, AlertCircle, Loader2, Image as ImageIcon, MessageSquare } from "lucide-react";
-import type { GroupedStep } from "../../lib/logUtils";
+import type { TestRunStep } from "../../types/api";
 import { cn } from "../../lib/utils";
 
 interface StepAccordionProps {
-  steps: GroupedStep[];
+  steps: TestRunStep[];
   defaultOpenAll?: boolean;
 }
 
@@ -18,19 +18,11 @@ export function StepAccordion({ steps, defaultOpenAll = false }: StepAccordionPr
   );
 }
 
-function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boolean }) {
-  // 判斷該步驟的最終狀態
-  const hasError = step.logs.some(log => 
-    log.result?.toLowerCase().includes("fail") || 
-    log.result?.toLowerCase().includes("error")
-  );
-  
-  const isPending = step.logs.length === 0;
-  
-  const isRunning = step.logs.some(log => 
-    log.result?.toLowerCase().includes("pending") || 
-    log.result?.toLowerCase().includes("running")
-  );
+function StepCard({ step, defaultOpen }: { step: TestRunStep; defaultOpen: boolean }) {
+  // 直接使用結構化的 step.status 判定步驟的成敗狀態
+  const hasError = step.status === "failed" || step.status === "error";
+  const isPending = step.status === "pending";
+  const isRunning = step.status === "running";
 
   const [isOpen, setIsOpen] = useState(defaultOpen || isRunning || hasError);
 
@@ -43,11 +35,15 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
     }
   }, [isRunning, hasError]);
 
+  const totalTokens = (step.promptTokens ?? 0) + (step.completionTokens ?? 0) + (step.totalTokens ?? 0);
+
   return (
     <div 
       className={cn(
-        "bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-md rounded-xl overflow-hidden transition-all duration-300",
-        isOpen ? "shadow-lg shadow-black/35 border-zinc-700/40" : "hover:border-zinc-800/80"
+        "bg-zinc-900/40 border backdrop-blur-md rounded-xl overflow-hidden transition-all duration-300",
+        hasError 
+          ? "border-rose-500/40 bg-rose-950/5 shadow-rose-950/20" 
+          : (isOpen ? "shadow-lg shadow-black/35 border-zinc-700/40" : "border-zinc-800/80 hover:border-zinc-700/60")
       )}
     >
       {/* Header */}
@@ -80,7 +76,7 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
         </div>
 
         <div className="flex items-center gap-3">
-          {step.totalTokens > 0 && (
+          {totalTokens > 0 && (
             <span className="relative group/tooltip flex items-center gap-1 text-[10px] text-zinc-300 bg-indigo-950/40 px-2.5 py-0.5 rounded-full border border-indigo-500/20 transition-all duration-300 hover:border-indigo-400/40 hover:bg-indigo-900/30">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
               <span>{step.totalTokens} Tokens</span>
@@ -128,7 +124,7 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
           isOpen ? "max-h-[2500px] border-t border-zinc-800/40 p-4" : "max-h-0"
         )}
       >
-        {step.logs.length === 0 ? (
+        {!step.logs || step.logs.length === 0 ? (
           <div className="text-zinc-500 text-xs italic pl-8 py-2">尚未開始執行動作。</div>
         ) : (
           <div className="relative pl-6 space-y-6">
@@ -138,20 +134,6 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
             {step.logs.map((log, index) => {
               const logHasError = log.result?.toLowerCase().includes("fail") || log.result?.toLowerCase().includes("error");
               const isLogPending = log.result?.toLowerCase() === "pending" || log.result?.toLowerCase() === "running";
-              
-              let timeStr = "";
-              try {
-                if (log.timestamp) {
-                  const date = new Date(log.timestamp);
-                  if (!isNaN(date.getTime())) {
-                    timeStr = date.toTimeString().split(" ")[0];
-                  } else {
-                    timeStr = log.timestamp;
-                  }
-                }
-              } catch {
-                timeStr = log.timestamp || "";
-              }
 
               return (
                 <div key={log.id || index} className="relative group/item">
@@ -183,12 +165,6 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
                           {log.result || "-"}
                         </p>
                       </div>
-                      
-                      {timeStr && (
-                        <span className="text-[10px] text-zinc-500 font-mono flex-shrink-0">
-                          {timeStr}
-                        </span>
-                      )}
                     </div>
 
                     {/* AI Response Card */}

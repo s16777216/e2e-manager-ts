@@ -1,16 +1,10 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from "typeorm";
-import { TestRun } from "./TestRun.js";
+import { TestRunStep } from "./TestRunStep.js";
 
 @Entity()
 export class TestLog {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
-
-  @Column("integer")
-  stepIdx!: number;
-
-  @Column("text")
-  stepDescription!: string;
 
   @Column("text", { nullable: true })
   action?: string;
@@ -21,9 +15,6 @@ export class TestLog {
   @Column("text", { nullable: true })
   aiResponse?: string;
 
-  @Column({ type: "bytea", nullable: true, select: false })
-  screenshotData?: Buffer;
-
   @Column("integer", { default: 0 })
   promptTokens!: number;
 
@@ -33,8 +24,8 @@ export class TestLog {
   @Column("integer", { default: 0 })
   totalTokens!: number;
 
-  @ManyToOne(() => TestRun, run => run.logs, { onDelete: "CASCADE" })
-  run!: any;
+  @ManyToOne(() => TestRunStep, step => step.logs, { onDelete: "CASCADE" })
+  step!: TestRunStep;
 
   @CreateDateColumn()
   createdAt!: Date;

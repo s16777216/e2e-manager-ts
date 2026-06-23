@@ -6,7 +6,6 @@ import { useSSEStream } from "../hooks/useSSEStream"
 import { useProjectData } from "../hooks/useProjectData"
 import type { Testcase } from "../types/api"
 import { api } from "../lib/api"
-import { groupLogsByStep } from "../lib/logUtils"
 import { StepAccordion } from "../components/custom/StepAccordion"
 import { cn } from "../lib/utils"
 
@@ -24,7 +23,6 @@ export default function SSEConsoleView() {
 
   // SSE 狀態連線
   const {
-    runLogs,
     runStatus
   } = useSSEStream(runId);
 
@@ -77,7 +75,7 @@ export default function SSEConsoleView() {
     if (timelineEndRef.current) {
       timelineEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [runLogs]);
+  }, [runStatus?.steps]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -127,13 +125,13 @@ export default function SSEConsoleView() {
       {/* 主日誌區 (單欄 Bento Style) */}
       <ScrollArea className="flex-1 bg-zinc-950/40">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {runLogs.length === 0 ? (
+          {(!runStatus?.steps || runStatus.steps.length === 0) ? (
             <div className="flex flex-col items-center justify-center py-32 text-muted-foreground gap-3">
               <Loader2 className="animate-spin text-primary" size={32} />
               <span className="text-sm italic">正在等待 Agent 開始執行步驟...</span>
             </div>
           ) : (
-            <StepAccordion steps={groupLogsByStep(runLogs)} />
+            <StepAccordion steps={runStatus.steps} />
           )}
 
           {/* 如果任務失敗且有全域失敗截圖，但在步驟中沒顯示出來，可以在此處作為備份展示 */}

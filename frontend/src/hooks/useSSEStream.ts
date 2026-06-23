@@ -1,19 +1,14 @@
 import { useState, useEffect, useRef } from "react"
 import { api } from "../lib/api"
-import type { TestLog, TestRun } from "../types/api"
+import type { TestLog, TestRun, TestRunStep } from "../types/api"
 import { toast } from "sonner"
 
 export function useSSEStream(runId: string | undefined) {
-  const [runLogs, setRunLogs] = useState<TestLog[]>([])
   const [runStatus, setRunStatus] = useState<TestRun | null>(null)
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null)
-  const [imgLoaded, setImgLoaded] = useState(true)
   const eventSourceRef = useRef<EventSource | null>(null)
 
   const triggerRun = async (testcaseId: string) => {
     try {
-      setRunLogs([])
-      setSelectedLogId(null)
       setRunStatus(null)
 
       const res = await api.triggerRun(testcaseId)
@@ -44,46 +39,97 @@ export function useSSEStream(runId: string | undefined) {
           setRunStatus(prev => prev ? { ...prev, status: "pending" } : {
             id: rId,
             status: "pending",
-            logs: []
+            steps: []
+          })
+        } else if (payload.event === "step_status") {
+          setRunStatus(prev => {
+            const run = prev || { id: rId, status: "running", steps: [] }
+            const steps = [...(run.steps || [])]
+            const existingIndex = steps.findIndex(s => s.stepIdx === payload.stepIdx)
+
+            const updatedStep: TestRunStep = {
+              id: payload.stepId,
+              stepIdx: payload.stepIdx,
+              stepDescription: payload.stepDescription,
+              status: payload.status,
+              promptTokens: payload.promptTokens ?? 0,
+              completionTokens: payload.completionTokens ?? 0,
+              totalTokens: payload.totalTokens ?? 0,
+              screenshotUrl: payload.status === "passed" || payload.status === "failed"
+                ? `/api/steps/${payload.stepId}/screenshot`
+                : null,
+              logs: existingIndex > -1 ? (steps[existingIndex].logs || []) : []
+            }
+
+            if (existingIndex > -1) {
+              steps[existingIndex] = {
+                ...steps[existingIndex],
+                ...updatedStep
+              }
+            } else {
+              steps.push(updatedStep)
+            }
+
+            return {
+              ...run,
+              status: payload.status === "failed" || payload.status === "error" ? "failed" : "running",
+              steps: steps.sort((a, b) => a.stepIdx - b.stepIdx)
+            }
           })
         } else if (payload.event === "log") {
-          const newLog: TestLog = {
-            id: payload.logId,
-            stepIdx: payload.stepIdx,
-            stepDescription: payload.stepDescription,
-            action: payload.action,
-            result: payload.result,
-            aiResponse: payload.aiResponse,
-            screenshotUrl: `/api/logs/${payload.logId}/screenshot`,
-            timestamp: payload.timestamp
-          }
-          setRunLogs(prev => {
-            const exists = prev.some(l => l.id === newLog.id)
-            if (exists) return prev
-            const nextLogs = [...prev, newLog]
-            setSelectedLogId(newLog.id)
-            setImgLoaded(false)
-            return nextLogs
-          })
-          setRunStatus(prev => prev ? { ...prev, status: "running" } : {
-            id: rId,
-            status: "running",
-            logs: []
+          setRunStatus(prev => {
+            const run = prev || { id: rId, status: "running", steps: [] }
+            const steps = [...(run.steps || [])]
+            const existingIndex = steps.findIndex(s => s.stepIdx === payload.stepIdx)
+
+            const newLog: TestLog = {
+              id: payload.logId,
+              action: payload.action,
+              result: payload.result,
+              aiResponse: payload.aiResponse,
+              promptTokens: payload.promptTokens,
+              completionTokens: payload.completionTokens,
+              totalTokens: payload.totalTokens
+            }
+
+            if (existingIndex > -1) {
+              const logs = [...(steps[existingIndex].logs || [])]
+              if (!logs.some(l => l.id === newLog.id)) {
+                logs.push(newLog)
+              }
+              steps[existingIndex] = {
+                ...steps[existingIndex],
+                logs
+              }
+            } else {
+              steps.push({
+                id: payload.stepId,
+                stepIdx: payload.stepIdx,
+                stepDescription: payload.stepDescription || "",
+                status: "running",
+                logs: [newLog]
+              })
+            }
+
+            return {
+              ...run,
+              status: "running",
+              steps: steps.sort((a, b) => a.stepIdx - b.stepIdx)
+            }
           })
         } else if (payload.event === "completed") {
-          setRunStatus(prev => prev ? {
-            ...prev,
-            status: payload.status,
-            finalResult: payload.finalResult,
-            finalReason: payload.finalReason,
-            screenshotFailUrl: payload.status !== "passed" ? `/api/runs/${rId}/screenshots/fail` : undefined
-          } : {
-            id: rId,
-            status: payload.status,
-            finalResult: payload.finalResult,
-            finalReason: payload.finalReason,
-            screenshotFailUrl: payload.status !== "passed" ? `/api/runs/${rId}/screenshots/fail` : undefined,
-            logs: []
+          setRunStatus(prev => {
+            const run = prev || { id: rId, steps: [] }
+            return {
+              ...run,
+              status: payload.status,
+              finalResult: payload.finalResult,
+              finalReason: payload.finalReason,
+              totalPromptTokens: payload.totalPromptTokens,
+              totalCompletionTokens: payload.totalCompletionTokens,
+              totalTokens: payload.totalTokens,
+              screenshotFailUrl: payload.status !== "passed" ? `/api/runs/${rId}/screenshots/fail` : undefined
+            }
           })
           eventSource.close()
           eventSourceRef.current = null
@@ -105,9 +151,7 @@ export function useSSEStream(runId: string | undefined) {
     const initRun = async (rId: string) => {
       Promise.resolve().then(() => {
         if (active) {
-          setRunLogs([])
           setRunStatus(null)
-          setSelectedLogId(null)
         }
       })
 
@@ -117,15 +161,6 @@ export function useSSEStream(runId: string | undefined) {
 
         if (runData) {
           setRunStatus(runData)
-          if (runData.logs && runData.logs.length > 0) {
-            const processedLogs = runData.logs.map(log => ({
-              ...log,
-              screenshotUrl: `/api/logs/${log.id}/screenshot`
-            }))
-            setRunLogs(processedLogs)
-            setSelectedLogId(processedLogs[processedLogs.length - 1].id)
-          }
-
           if (runData.status === "pending" || runData.status === "running") {
             subscribeToSSE(rId)
           }
@@ -149,9 +184,7 @@ export function useSSEStream(runId: string | undefined) {
       }
       Promise.resolve().then(() => {
         if (active) {
-          setRunLogs([])
           setRunStatus(null)
-          setSelectedLogId(null)
         }
       })
     }
@@ -166,12 +199,7 @@ export function useSSEStream(runId: string | undefined) {
   }, [runId])
 
   return {
-    runLogs,
     runStatus,
-    selectedLogId,
-    setSelectedLogId,
-    imgLoaded,
-    setImgLoaded,
     triggerRun
   }
 }
