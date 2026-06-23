@@ -42,15 +42,20 @@ runRouter.post("/testcases/:id/run", async (c) => {
     }),
   ]);
 
-  return c.json({
-    taskId: task.id,
-    runs: [{
-      runId: run.id,
-      testcaseId: testcase.id,
-      testcaseName: testcase.name,
-      status: run.status,
-    }]
-  }, 202);
+  return c.json(
+    {
+      taskId: task.id,
+      runs: [
+        {
+          runId: run.id,
+          testcaseId: testcase.id,
+          testcaseName: testcase.name,
+          status: run.status,
+        },
+      ],
+    },
+    202,
+  );
 });
 
 runRouter.post("/projects/:projectId/run", async (c) => {
@@ -99,10 +104,13 @@ runRouter.post("/projects/:projectId/run", async (c) => {
     });
   }
 
-  return c.json({
-    taskId: task.id,
-    runs: runsCreated,
-  }, 202);
+  return c.json(
+    {
+      taskId: task.id,
+      runs: runsCreated,
+    },
+    202,
+  );
 });
 
 runRouter.post("/groups/:groupId/run", async (c) => {
@@ -110,7 +118,7 @@ runRouter.post("/groups/:groupId/run", async (c) => {
   const groupRepo = AppDataSource.getRepository(TestGroup);
   const parentGroup = await groupRepo.findOne({
     where: { id: groupId },
-    relations: { project: true }
+    relations: { project: true },
   });
   if (!parentGroup) return c.json({ error: "找不到指定的群組" }, 404);
 
@@ -120,7 +128,7 @@ runRouter.post("/groups/:groupId/run", async (c) => {
   // 1. 載入該專案下的所有群組
   const allGroups = await groupRepo.find({
     where: { project: { id: projectId } },
-    relations: { parent: true }
+    relations: { parent: true },
   });
 
   // 2. 在記憶體中遞迴查找所有子群組
@@ -129,7 +137,11 @@ runRouter.post("/groups/:groupId/run", async (c) => {
   while (added) {
     added = false;
     for (const g of allGroups) {
-      if (g.parent && descendantIds.has(g.parent.id) && !descendantIds.has(g.id)) {
+      if (
+        g.parent &&
+        descendantIds.has(g.parent.id) &&
+        !descendantIds.has(g.id)
+      ) {
         descendantIds.add(g.id);
         added = true;
       }
@@ -182,10 +194,13 @@ runRouter.post("/groups/:groupId/run", async (c) => {
     });
   }
 
-  return c.json({
-    taskId: task.id,
-    runs: runsCreated,
-  }, 202);
+  return c.json(
+    {
+      taskId: task.id,
+      runs: runsCreated,
+    },
+    202,
+  );
 });
 
 runRouter.get("/runs/:runId", async (c) => {
@@ -207,14 +222,19 @@ runRouter.get("/runs/:runId", async (c) => {
 
   const steps = sortedSteps.map((step) => {
     // 依照建立時間排序步驟下的操作日誌
-    const sortedLogs = (step.logs || []).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    const sortedLogs = (step.logs || []).sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
 
     return {
       id: step.id,
       stepIdx: step.stepIdx,
       stepDescription: step.stepDescription,
       status: step.status,
-      screenshotUrl: (step.status === "passed" || step.status === "failed") ? `/api/steps/${step.id}/screenshot` : null,
+      screenshotUrl:
+        step.status === "passed" || step.status === "failed"
+          ? `/api/steps/${step.id}/screenshot`
+          : null,
       promptTokens: step.promptTokens,
       completionTokens: step.completionTokens,
       totalTokens: step.totalTokens,
