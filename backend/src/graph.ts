@@ -9,6 +9,7 @@ import { BrowserTools } from "./tools.js";
 import { AppDataSource } from "./db.js";
 import { TestRun } from "./entities/TestRun.js";
 import { TestLog } from "./entities/TestLog.js";
+import { TestRunStep } from "./entities/TestRunStep.js";
 import { buildExecutorSystemPrompt, buildAsserterSystemPrompt } from "./graph/prompt.js";
 import { routeAfterExecution, routeNextStep } from "./graph/router.js";
 
@@ -63,6 +64,40 @@ export class E2EGraphBuilder {
   async executorNode(state: typeof TestState.State) {
     const idx = state.current_step_idx;
     const step_content = state.steps[idx];
+
+    // 新增：在步驟開始時建立或載入 TestRunStep，狀態設為 running
+    const testRunRepo = AppDataSource.getRepository(TestRun);
+    const testRunStepRepo = AppDataSource.getRepository(TestRunStep);
+    const run = await testRunRepo.findOne({ where: { id: state.run_id } });
+    if (run) {
+      let stepRunEntity = await testRunStepRepo.findOne({
+        where: { run: { id: run.id }, stepIdx: idx }
+      });
+      if (!stepRunEntity) {
+        stepRunEntity = new TestRunStep();
+        stepRunEntity.run = run;
+        stepRunEntity.stepIdx = idx;
+        stepRunEntity.stepDescription = step_content;
+        stepRunEntity.status = "running";
+        await testRunStepRepo.save(stepRunEntity);
+
+        // 廣播 step_status 事件通知前端
+        await testRunStepRepo.query(
+          `SELECT pg_notify('test_run_logs', $1)`,
+          [
+            JSON.stringify({
+              runId: run.id,
+              stepIdx: idx,
+              stepId: stepRunEntity.id,
+              stepDescription: step_content,
+              status: "running",
+              event: "step_status",
+              timestamp: new Date().toISOString()
+            })
+          ]
+        );
+      }
+    }
 
     // 1. 取得當前畫面截圖 (Base64) 與簡化 DOM 及當前網址
     const screenshot_base64 = await this.browserManager.getPageScreenshotBase64();
@@ -199,33 +234,49 @@ export class E2EGraphBuilder {
 
     // 將日誌與二進位截圖寫入資料庫
     const testRunRepo = AppDataSource.getRepository(TestRun);
+    const testRunStepRepo = AppDataSource.getRepository(TestRunStep);
     const testLogRepo = AppDataSource.getRepository(TestLog);
     
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
     if (run) {
-      // 累加這一步的 Token 至 TestRun 最上層的總累計欄位
+      // 1. 尋找或建立當前步驟實體
+      let stepRunEntity = await testRunStepRepo.findOne({
+        where: { run: { id: run.id }, stepIdx: idx }
+      });
+      if (!stepRunEntity) {
+        stepRunEntity = new TestRunStep();
+        stepRunEntity.run = run;
+        stepRunEntity.stepIdx = idx;
+        stepRunEntity.stepDescription = state.steps[idx];
+      }
+
+      // 2. 更新步驟狀態、Token 及截圖
+      stepRunEntity.status = "passed";
+      stepRunEntity.promptTokens = stepPromptTokens;
+      stepRunEntity.completionTokens = stepCompletionTokens;
+      stepRunEntity.totalTokens = stepTotalTokens;
+      if (screenshotBuffer) {
+        stepRunEntity.screenshotData = screenshotBuffer;
+      }
+      await testRunStepRepo.save(stepRunEntity);
+
+      // 3. 累加這一步的 Token 至 TestRun 最上層的總累計欄位
       run.totalPromptTokens = (run.totalPromptTokens || 0) + stepPromptTokens;
       run.totalCompletionTokens = (run.totalCompletionTokens || 0) + stepCompletionTokens;
       run.totalTokens = (run.totalTokens || 0) + stepTotalTokens;
       await testRunRepo.save(run);
 
+      // 4. 寫入該步驟的所有操作日誌并關聯
       for (let i = 0; i < stepLogs.length; i++) {
         const log = stepLogs[i];
         const entity = new TestLog();
-        entity.run = run;
-        entity.stepIdx = log.step_idx;
-        entity.stepDescription = log.step_description;
+        entity.step = stepRunEntity;
         entity.action = log.action;
         entity.result = log.result;
         entity.aiResponse = log.ai_response;
         entity.promptTokens = log.prompt_tokens ?? 0;
         entity.completionTokens = log.completion_tokens ?? 0;
         entity.totalTokens = log.total_tokens ?? 0;
-        
-        // 僅在最後一筆 log 附帶截圖，代表該步完成時的畫面 (bytea 二進位)
-        if (i === stepLogs.length - 1 && screenshotBuffer) {
-          entity.screenshotData = screenshotBuffer;
-        }
         
         await testLogRepo.save(entity);
         
@@ -235,8 +286,8 @@ export class E2EGraphBuilder {
           [
             JSON.stringify({
               runId: run.id,
-              stepIdx: log.step_idx,
-              stepDescription: log.step_description,
+              stepIdx: idx,
+              stepId: stepRunEntity.id,
               action: log.action,
               result: log.result,
               aiResponse: log.ai_response,
@@ -250,6 +301,23 @@ export class E2EGraphBuilder {
           ]
         );
       }
+
+      // 5. 廣播步驟更新通知 (passed)
+      await testRunStepRepo.query(
+        `SELECT pg_notify('test_run_logs', $1)`,
+        [
+          JSON.stringify({
+            runId: run.id,
+            stepIdx: idx,
+            stepId: stepRunEntity.id,
+            stepDescription: stepRunEntity.stepDescription,
+            status: "passed",
+            event: "step_status",
+            totalTokens: stepRunEntity.totalTokens,
+            timestamp: new Date().toISOString()
+          })
+        ]
+      );
     }
 
     return {
@@ -389,42 +457,147 @@ export class E2EGraphBuilder {
       await this.browserManager.closeBrowser();
     } catch (e) {}
 
-    // 更新資料庫中的 TestRun 紀錄，將最終失敗結果與失敗當刻截圖二進位 (bytea) 寫入
+    // 更新資料庫中的 TestRun 與 TestRunStep 紀錄
     const testRunRepo = AppDataSource.getRepository(TestRun);
-    const updatePayload: any = {
-      status: merged_result === "PASS" ? "passed" : (merged_result === "ERROR" ? "error" : "failed"),
-      finalResult: merged_result,
-      finalReason: update_data.final_reason || state.final_reason,
-      finishedAt: new Date()
-    };
-    if (screenshotFailBuffer) {
-      updatePayload.screenshotFailData = screenshotFailBuffer;
-    }
-    await testRunRepo.update(state.run_id, updatePayload);
+    const testRunStepRepo = AppDataSource.getRepository(TestRunStep);
+    const testLogRepo = AppDataSource.getRepository(TestLog);
 
-    // 取得最新總 tokens 以便廣播
     const run = await testRunRepo.findOne({ where: { id: state.run_id } });
-    const totalPromptTokens = run ? run.totalPromptTokens : 0;
-    const totalCompletionTokens = run ? run.totalCompletionTokens : 0;
-    const totalTokens = run ? run.totalTokens : 0;
+    if (run) {
+      // 1. 如果步驟尚未跑完，說明最後一步失敗了。更新當前步驟為 failed，並補存相關 logs。
+      if (currentStepIdx < steps.length) {
+        let stepRunEntity = await testRunStepRepo.findOne({
+          where: { run: { id: run.id }, stepIdx: currentStepIdx }
+        });
+        if (!stepRunEntity) {
+          stepRunEntity = new TestRunStep();
+          stepRunEntity.run = run;
+          stepRunEntity.stepIdx = currentStepIdx;
+          stepRunEntity.stepDescription = steps[currentStepIdx];
+        }
 
-    // 發送任務結束通知
-    await testRunRepo.query(
-      `SELECT pg_notify('test_run_logs', $1)`,
-      [
-        JSON.stringify({
-          runId: state.run_id,
-          status: updatePayload.status,
-          finalResult: merged_result,
-          finalReason: updatePayload.finalReason,
-          event: "completed",
-          timestamp: new Date().toISOString(),
-          totalPromptTokens,
-          totalCompletionTokens,
-          totalTokens
-        })
-      ]
-    );
+        // 篩選與當前失敗步驟相關的記憶體 logs
+        let stepLogs = (state.logs || []).filter(l => l.step_idx === currentStepIdx);
+
+        // 如果完全無日誌則自動補充一筆虛擬日誌
+        if (stepLogs.length === 0) {
+          stepLogs.push({
+            step_idx: currentStepIdx,
+            step_description: steps[currentStepIdx],
+            action: "error",
+            result: "步驟超限未完成",
+            timestamp: new Date().toISOString(),
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+          });
+        }
+
+        let stepPromptTokens = 0;
+        let stepCompletionTokens = 0;
+        let stepTotalTokens = 0;
+        for (const log of stepLogs) {
+          stepPromptTokens += log.prompt_tokens ?? 0;
+          stepCompletionTokens += log.completion_tokens ?? 0;
+          stepTotalTokens += log.total_tokens ?? 0;
+        }
+
+        // 寫入/更新步驟狀態為 failed
+        stepRunEntity.status = "failed";
+        stepRunEntity.promptTokens = stepPromptTokens;
+        stepRunEntity.completionTokens = stepCompletionTokens;
+        stepRunEntity.totalTokens = stepTotalTokens;
+        if (screenshotFailBuffer) {
+          stepRunEntity.screenshotData = screenshotFailBuffer;
+        }
+        await testRunStepRepo.save(stepRunEntity);
+
+        // 累加 Token 到 TestRun 總數
+        run.totalPromptTokens = (run.totalPromptTokens || 0) + stepPromptTokens;
+        run.totalCompletionTokens = (run.totalCompletionTokens || 0) + stepCompletionTokens;
+        run.totalTokens = (run.totalTokens || 0) + stepTotalTokens;
+
+        // 寫入當前失敗步驟的所有 TestLog 並與該步驟關聯
+        for (const log of stepLogs) {
+          const entity = new TestLog();
+          entity.step = stepRunEntity;
+          entity.action = log.action;
+          entity.result = log.result;
+          entity.aiResponse = log.ai_response;
+          entity.promptTokens = log.prompt_tokens ?? 0;
+          entity.completionTokens = log.completion_tokens ?? 0;
+          entity.totalTokens = log.total_tokens ?? 0;
+          await testLogRepo.save(entity);
+
+          // 廣播操作日誌
+          await testLogRepo.query(
+            `SELECT pg_notify('test_run_logs', $1)`,
+            [
+              JSON.stringify({
+                runId: run.id,
+                stepIdx: currentStepIdx,
+                stepId: stepRunEntity.id,
+                action: log.action,
+                result: log.result,
+                aiResponse: log.ai_response,
+                logId: entity.id,
+                event: "log",
+                timestamp: new Date().toISOString(),
+                promptTokens: entity.promptTokens,
+                completionTokens: entity.completionTokens,
+                totalTokens: entity.totalTokens
+              })
+            ]
+          );
+        }
+
+        // 廣播步驟更新通知 (failed)
+        await testRunStepRepo.query(
+          `SELECT pg_notify('test_run_logs', $1)`,
+          [
+            JSON.stringify({
+              runId: run.id,
+              stepIdx: currentStepIdx,
+              stepId: stepRunEntity.id,
+              stepDescription: stepRunEntity.stepDescription,
+              status: "failed",
+              event: "step_status",
+              totalTokens: stepRunEntity.totalTokens,
+              timestamp: new Date().toISOString()
+            })
+          ]
+        );
+      }
+
+      // 2. 更新 TestRun 屬性
+      const statusValue = merged_result === "PASS" ? "passed" : (merged_result === "ERROR" ? "error" : "failed");
+      run.status = statusValue;
+      run.finalResult = merged_result;
+      run.finalReason = update_data.final_reason || state.final_reason;
+      run.finishedAt = new Date();
+      if (screenshotFailBuffer) {
+        run.screenshotFailData = screenshotFailBuffer;
+      }
+      await testRunRepo.save(run);
+
+      // 3. 發送任務結束通知
+      await testRunRepo.query(
+        `SELECT pg_notify('test_run_logs', $1)`,
+        [
+          JSON.stringify({
+            runId: state.run_id,
+            status: run.status,
+            finalResult: merged_result,
+            finalReason: run.finalReason,
+            event: "completed",
+            timestamp: new Date().toISOString(),
+            totalPromptTokens: run.totalPromptTokens,
+            totalCompletionTokens: run.totalCompletionTokens,
+            totalTokens: run.totalTokens
+          })
+        ]
+      );
+    }
 
     return update_data;
   }

@@ -1,14 +1,25 @@
 import React, { useState } from "react";
-import { ChevronDown, CheckCircle2, XCircle, AlertCircle, Loader2, Image as ImageIcon, MessageSquare } from "lucide-react";
-import type { GroupedStep } from "../../lib/logUtils";
+import {
+  ChevronDown,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Loader2,
+  Image as ImageIcon,
+  MessageSquare,
+} from "lucide-react";
+import type { TestRunStep } from "../../types/api";
 import { cn } from "../../lib/utils";
 
 interface StepAccordionProps {
-  steps: GroupedStep[];
+  steps: TestRunStep[];
   defaultOpenAll?: boolean;
 }
 
-export function StepAccordion({ steps, defaultOpenAll = false }: StepAccordionProps) {
+export function StepAccordion({
+  steps,
+  defaultOpenAll = false,
+}: StepAccordionProps) {
   return (
     <div className="space-y-4">
       {steps.map((step) => (
@@ -18,19 +29,17 @@ export function StepAccordion({ steps, defaultOpenAll = false }: StepAccordionPr
   );
 }
 
-function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boolean }) {
-  // 判斷該步驟的最終狀態
-  const hasError = step.logs.some(log => 
-    log.result?.toLowerCase().includes("fail") || 
-    log.result?.toLowerCase().includes("error")
-  );
-  
-  const isPending = step.logs.length === 0;
-  
-  const isRunning = step.logs.some(log => 
-    log.result?.toLowerCase().includes("pending") || 
-    log.result?.toLowerCase().includes("running")
-  );
+function StepCard({
+  step,
+  defaultOpen,
+}: {
+  step: TestRunStep;
+  defaultOpen: boolean;
+}) {
+  // 直接使用結構化的 step.status 判定步驟的成敗狀態
+  const hasError = step.status === "failed" || step.status === "error";
+  const isPending = step.status === "pending";
+  const isRunning = step.status === "running";
 
   const [isOpen, setIsOpen] = useState(defaultOpen || isRunning || hasError);
 
@@ -43,15 +52,24 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
     }
   }, [isRunning, hasError]);
 
+  const totalTokens =
+    (step.promptTokens ?? 0) +
+    (step.completionTokens ?? 0) +
+    (step.totalTokens ?? 0);
+
   return (
-    <div 
+    <div
       className={cn(
-        "bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-md rounded-xl overflow-hidden transition-all duration-300",
-        isOpen ? "shadow-lg shadow-black/35 border-zinc-700/40" : "hover:border-zinc-800/80"
+        "bg-zinc-900/40 border backdrop-blur-md rounded-xl transition-all duration-300",
+        hasError
+          ? "border-rose-500/40 bg-rose-950/5 shadow-rose-950/20"
+          : isOpen
+            ? "shadow-lg shadow-black/35 border-zinc-700/40"
+            : "border-zinc-800/80 hover:border-zinc-700/60",
       )}
     >
       {/* Header */}
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-zinc-900/30 transition-colors"
       >
@@ -71,7 +89,7 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
 
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700/50">
-              步驟 {step.stepIdx}
+              步驟 {step.stepIdx + 1}
             </span>
             <span className="text-zinc-200 font-medium text-sm truncate">
               {step.stepDescription || "無步驟描述"}
@@ -80,29 +98,9 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
         </div>
 
         <div className="flex items-center gap-3">
-          {step.totalTokens > 0 && (
-            <span className="relative group/tooltip flex items-center gap-1 text-[10px] text-zinc-300 bg-indigo-950/40 px-2.5 py-0.5 rounded-full border border-indigo-500/20 transition-all duration-300 hover:border-indigo-400/40 hover:bg-indigo-900/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-              <span>{step.totalTokens} Tokens</span>
-              
-              {/* Tooltip */}
-              <span className="absolute bottom-full right-0 mb-2 hidden group-hover/tooltip:flex flex-col gap-1 w-36 bg-zinc-950/95 border border-zinc-800/80 p-2.5 rounded-lg shadow-xl backdrop-blur-md text-zinc-300 font-mono text-[9px] z-50 animate-fadeIn pointer-events-none">
-                <div className="flex justify-between border-b border-zinc-800/80 pb-1 mb-1 font-sans text-[10px] font-semibold text-zinc-200">
-                  <span>Token 明細</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">輸入:</span>
-                  <span className="text-zinc-300 font-semibold">{step.promptTokens}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">輸出:</span>
-                  <span className="text-zinc-300 font-semibold">{step.completionTokens}</span>
-                </div>
-                <div className="flex justify-between border-t border-zinc-800/80 pt-1 mt-1">
-                  <span className="text-zinc-400 font-sans font-semibold">總計:</span>
-                  <span className="text-indigo-400 font-bold">{step.totalTokens}</span>
-                </div>
-              </span>
+          {totalTokens > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-zinc-300 bg-indigo-950/40 px-2.5 py-0.5 rounded-full border border-indigo-500/20 transition-all duration-300 hover:border-indigo-400/40 hover:bg-indigo-900/30">
+              {step.totalTokens} Tokens
             </span>
           )}
 
@@ -112,58 +110,50 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
               截圖
             </span>
           )}
-          <ChevronDown 
+          <ChevronDown
             className={cn(
               "w-4 h-4 text-zinc-400 transition-transform duration-300",
-              isOpen && "transform rotate-180 text-zinc-200"
+              isOpen && "transform rotate-180 text-zinc-200",
             )}
           />
         </div>
       </div>
 
       {/* Content */}
-      <div 
+      <div
         className={cn(
           "transition-all duration-300 ease-in-out overflow-hidden",
-          isOpen ? "max-h-[2500px] border-t border-zinc-800/40 p-4" : "max-h-0"
+          isOpen ? "max-h-[2500px] border-t border-zinc-800/40 p-4" : "max-h-0",
         )}
       >
-        {step.logs.length === 0 ? (
-          <div className="text-zinc-500 text-xs italic pl-8 py-2">尚未開始執行動作。</div>
+        {!step.logs || step.logs.length === 0 ? (
+          <div className="text-zinc-500 text-xs italic pl-8 py-2">
+            尚未開始執行動作。
+          </div>
         ) : (
           <div className="relative pl-6 space-y-6">
             {/* Timeline Vertical Line */}
             <div className="absolute top-1.5 bottom-1.5 left-2.5 w-0.5 bg-zinc-800/60" />
 
             {step.logs.map((log, index) => {
-              const logHasError = log.result?.toLowerCase().includes("fail") || log.result?.toLowerCase().includes("error");
-              const isLogPending = log.result?.toLowerCase() === "pending" || log.result?.toLowerCase() === "running";
-              
-              let timeStr = "";
-              try {
-                if (log.timestamp) {
-                  const date = new Date(log.timestamp);
-                  if (!isNaN(date.getTime())) {
-                    timeStr = date.toTimeString().split(" ")[0];
-                  } else {
-                    timeStr = log.timestamp;
-                  }
-                }
-              } catch {
-                timeStr = log.timestamp || "";
-              }
+              const logHasError =
+                log.result?.toLowerCase().includes("fail") ||
+                log.result?.toLowerCase().includes("error");
+              const isLogPending =
+                log.result?.toLowerCase() === "pending" ||
+                log.result?.toLowerCase() === "running";
 
               return (
                 <div key={log.id || index} className="relative group/item">
                   {/* Timeline Dot */}
-                  <div 
+                  <div
                     className={cn(
                       "absolute -left-[20px] top-1.5 w-2 h-2 rounded-full border transition-colors duration-300",
-                      logHasError 
-                        ? "bg-rose-500 border-rose-400 shadow-sm shadow-rose-500/50" 
+                      logHasError
+                        ? "bg-rose-500 border-rose-400 shadow-sm shadow-rose-500/50"
                         : isLogPending
-                        ? "bg-emerald-500 border-emerald-400 animate-pulse"
-                        : "bg-zinc-700 border-zinc-600 group-hover/item:bg-zinc-500"
+                          ? "bg-emerald-500 border-emerald-400 animate-pulse"
+                          : "bg-zinc-700 border-zinc-600 group-hover/item:bg-zinc-500",
                     )}
                   />
 
@@ -176,19 +166,17 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
                           {log.action || "執行操作..."}
                         </div>
                         {/* Action Result */}
-                        <p className={cn(
-                          "text-xs leading-relaxed",
-                          logHasError ? "text-rose-400 font-medium" : "text-zinc-400"
-                        )}>
+                        <p
+                          className={cn(
+                            "text-xs leading-relaxed",
+                            logHasError
+                              ? "text-rose-400 font-medium"
+                              : "text-zinc-400",
+                          )}
+                        >
                           {log.result || "-"}
                         </p>
                       </div>
-                      
-                      {timeStr && (
-                        <span className="text-[10px] text-zinc-500 font-mono flex-shrink-0">
-                          {timeStr}
-                        </span>
-                      )}
                     </div>
 
                     {/* AI Response Card */}
@@ -198,7 +186,9 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>AI 推理分析</span>
                         </div>
-                        <p className="font-sans whitespace-pre-wrap">{log.aiResponse}</p>
+                        <p className="font-sans whitespace-pre-wrap">
+                          {log.aiResponse}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -216,9 +206,9 @@ function StepCard({ step, defaultOpen }: { step: GroupedStep; defaultOpen: boole
               <span>步驟執行截圖</span>
             </div>
             <div className="relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 max-w-2xl group/img">
-              <img 
-                src={step.screenshotUrl} 
-                alt={`Step ${step.stepIdx} Screenshot`} 
+              <img
+                src={step.screenshotUrl}
+                alt={`Step ${step.stepIdx} Screenshot`}
                 className="w-full h-auto object-contain transition-transform duration-500 group-hover/img:scale-[1.01] cursor-zoom-in"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 pointer-events-none flex items-end p-2">

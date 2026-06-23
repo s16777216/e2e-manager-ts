@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { Testcase } from "./Testcase.js";
-import { TestLog } from "./TestLog.js";
+import { TestRunStep } from "./TestRunStep.js";
 import { Task } from "./Task.js";
 
 @Entity()
@@ -23,7 +23,7 @@ export class TestRun {
   @Column("text", { nullable: true })
   finalReason?: string;
 
-  @Column({ type: "bytea", nullable: true })
+  @Column({ type: "bytea", nullable: true, select: false })
   screenshotFailData?: Buffer;
 
   @Column("integer", { default: 0 })
@@ -47,8 +47,8 @@ export class TestRun {
   @ManyToOne(() => Testcase, testcase => testcase.runs, { onDelete: "CASCADE" })
   testcase!: any;
 
-  @OneToMany(() => TestLog, log => log.run)
-  logs!: TestLog[];
+  @OneToMany(() => TestRunStep, step => step.run)
+  steps!: TestRunStep[];
 
   @ManyToOne(() => Task, task => task.runs, { nullable: true, onDelete: "SET NULL" })
   task!: Task | null;

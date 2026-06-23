@@ -7,6 +7,7 @@ import { TestRun } from "../entities/TestRun.js";
 import { TestLog } from "../entities/TestLog.js";
 import { TestGroup } from "../entities/TestGroup.js";
 import { Task } from "../entities/Task.js";
+import { TestRunStep } from "../entities/TestRunStep.js";
 
 export const runRouter = new Hono();
 
@@ -191,23 +192,43 @@ runRouter.get("/runs/:runId", async (c) => {
   const runId = c.req.param("runId");
   const run = await AppDataSource.getRepository(TestRun).findOne({
     where: { id: runId },
-    relations: { logs: true, testcase: true },
+    relations: {
+      steps: {
+        logs: true,
+      },
+      testcase: true,
+    },
   });
 
   if (!run) return c.json({ error: "找不到該任務紀錄" }, 404);
 
-  const logs = run.logs.map((log) => ({
-    id: log.id,
-    stepIdx: log.stepIdx,
-    stepDescription: log.stepDescription,
-    action: log.action,
-    result: log.result,
-    aiResponse: log.aiResponse,
-    screenshotUrl: `/api/logs/${log.id}/screenshot`,
-    promptTokens: log.promptTokens,
-    completionTokens: log.completionTokens,
-    totalTokens: log.totalTokens,
-  }));
+  // 依照步驟索引（stepIdx）升冪排序
+  const sortedSteps = (run.steps || []).sort((a, b) => a.stepIdx - b.stepIdx);
+
+  const steps = sortedSteps.map((step) => {
+    // 依照建立時間排序步驟下的操作日誌
+    const sortedLogs = (step.logs || []).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    return {
+      id: step.id,
+      stepIdx: step.stepIdx,
+      stepDescription: step.stepDescription,
+      status: step.status,
+      screenshotUrl: (step.status === "passed" || step.status === "failed") ? `/api/steps/${step.id}/screenshot` : null,
+      promptTokens: step.promptTokens,
+      completionTokens: step.completionTokens,
+      totalTokens: step.totalTokens,
+      logs: sortedLogs.map((log) => ({
+        id: log.id,
+        action: log.action,
+        result: log.result,
+        aiResponse: log.aiResponse,
+        promptTokens: log.promptTokens,
+        completionTokens: log.completionTokens,
+        totalTokens: log.totalTokens,
+      })),
+    };
+  });
 
   return c.json({
     runId: run.id,
@@ -226,7 +247,7 @@ runRouter.get("/runs/:runId", async (c) => {
     totalPromptTokens: run.totalPromptTokens,
     totalCompletionTokens: run.totalCompletionTokens,
     totalTokens: run.totalTokens,
-    logs,
+    steps,
   });
 });
 
@@ -260,21 +281,21 @@ runRouter.delete("/runs/:runId", async (c) => {
   }
 });
 
-runRouter.get("/logs/:logId/screenshot", async (c) => {
-  const logId = c.req.param("logId");
+runRouter.get("/steps/:stepId/screenshot", async (c) => {
+  const stepId = c.req.param("stepId");
 
-  const log = await AppDataSource.getRepository(TestLog)
-    .createQueryBuilder("log")
-    .select(["log.id", "log.screenshotData"])
-    .where("log.id = :logId", { logId })
+  const step = await AppDataSource.getRepository(TestRunStep)
+    .createQueryBuilder("step")
+    .select(["step.id", "step.screenshotData"])
+    .where("step.id = :stepId", { stepId })
     .getOne();
 
-  if (!log || !log.screenshotData) {
+  if (!step || !step.screenshotData) {
     return c.json({ error: "找不到該步驟的截圖" }, 404);
   }
 
   c.header("Content-Type", "image/png");
-  return c.body(log.screenshotData as any);
+  return c.body(step.screenshotData as any);
 });
 
 runRouter.get("/runs/:runId/screenshots/fail", async (c) => {

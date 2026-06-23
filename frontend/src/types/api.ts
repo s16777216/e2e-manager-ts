@@ -44,7 +44,7 @@ export interface TestRun {
   finalResult?: string;
   finalReason?: string;
   screenshotFailUrl?: string;
-  logs?: TestLog[];
+  steps?: TestRunStep[];
   asserterPromptTokens?: number;
   asserterCompletionTokens?: number;
   asserterTotalTokens?: number;
@@ -53,15 +53,23 @@ export interface TestRun {
   totalTokens?: number;
 }
 
-export interface TestLog {
+export interface TestRunStep {
   id: string;
   stepIdx: number;
   stepDescription: string;
+  status: "pending" | "running" | "passed" | "failed" | "error";
+  screenshotUrl?: string | null;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  logs?: TestLog[];
+}
+
+export interface TestLog {
+  id: string;
   action: string;
   result: string;
   aiResponse?: string;
-  screenshotUrl?: string;
-  timestamp: string;
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
