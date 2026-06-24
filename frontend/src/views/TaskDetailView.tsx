@@ -5,6 +5,7 @@ import { api } from "../lib/api"
 import type { Task } from "../types/api"
 import { CheckCircle, XCircle, Clock, Loader2, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { StatusBadge } from "../components/custom/StatusBadge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
@@ -71,7 +72,7 @@ export default function TaskDetailView() {
 
   // 訂閱 SSE Stream
   useEffect(() => {
-    if (!taskId || !taskStatus || taskStatus === "done") return
+    if (!taskId || !taskStatus || ["passed", "failed", "error"].includes(taskStatus)) return
 
     const streamUrl = api.getTaskStreamUrl(taskId)
     const eventSource = new EventSource(streamUrl)
@@ -89,7 +90,6 @@ export default function TaskDetailView() {
               doneCount: payload.doneCount ?? prev.doneCount,
               totalCount: payload.totalCount ?? prev.totalCount,
               status: payload.status ?? prev.status,
-              finalResult: payload.finalResult ?? prev.finalResult,
             }
             return updated
           })
@@ -143,67 +143,6 @@ export default function TaskDetailView() {
     ? Math.round((task.doneCount / task.totalCount) * 100) 
     : 0
 
-  // 狀態與結果 Badge 渲染
-  const renderTaskStatusBadge = () => {
-    if (task.status === "done") {
-      if (task.finalResult === "PASS") {
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full font-bold">
-            <CheckCircle size={12} /> 任務成功 (PASS)
-          </span>
-        )
-      } else {
-        return (
-          <span className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full font-bold">
-            <XCircle size={12} /> 任務失敗 (FAIL)
-          </span>
-        )
-      }
-    } else if (task.status === "running") {
-      return (
-        <span className="flex items-center gap-1.5 text-xs text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full font-bold">
-          <Loader2 size={12} className="animate-spin text-primary" /> 執行中 (Running)
-        </span>
-      )
-    } else {
-      return (
-        <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full font-bold">
-          <Clock size={12} /> 排隊中 (Pending)
-        </span>
-      )
-    }
-  }
-
-  const renderRunStatusBadge = (status: string) => {
-    switch (status) {
-      case "passed":
-        return (
-          <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">
-            <CheckCircle size={10} /> PASS
-          </span>
-        )
-      case "failed":
-      case "error":
-        return (
-          <span className="flex items-center gap-1 text-[10px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full font-medium">
-            <XCircle size={10} /> {status.toUpperCase()}
-          </span>
-        )
-      case "running":
-        return (
-          <span className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full font-medium">
-            <Loader2 size={10} className="animate-spin text-primary" /> RUNNING
-          </span>
-        )
-      default:
-        return (
-          <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-full font-medium">
-            <Clock size={10} /> PENDING
-          </span>
-        )
-    }
-  }
-
   const getScopeLabel = () => {
     switch (task.scope) {
       case "project": return "專案批次"
@@ -229,7 +168,7 @@ export default function TaskDetailView() {
           <p className="text-xs font-mono text-zinc-500 mt-1">UUID: {task.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          {renderTaskStatusBadge()}
+          <StatusBadge status={task.status} />
           <Button
             variant="outline"
             onClick={() => navigate(`/project/${projectId}`)}
@@ -306,7 +245,7 @@ export default function TaskDetailView() {
                         <span className="font-bold text-sm text-zinc-200 group-hover:text-primary transition-colors line-clamp-1">
                           {run.testcaseName}
                         </span>
-                        {renderRunStatusBadge(run.status)}
+                        <StatusBadge status={run.status} />
                       </div>
                       <span className="text-[10px] font-mono text-zinc-500">
                         Run ID: #{run.runId.substring(0, 8)}

@@ -13,10 +13,7 @@ export class Task {
   scopeId!: string;
 
   @Column("varchar", { default: "pending" })
-  status!: "pending" | "running" | "done";
-
-  @Column("varchar", { nullable: true })
-  finalResult!: "PASS" | "FAIL" | null;
+  status!: "pending" | "running" | "passed" | "failed" | "error";
 
   @Column("int")
   totalCount!: number;

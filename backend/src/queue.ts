@@ -10,6 +10,15 @@ import { Testcase } from "./entities/Testcase.js";
 import { mergeCookies, mergeLocalStorage } from "./services/environmentService.js";
 
 export class TaskQueue {
+  private static instance: TaskQueue | null = null;
+
+  public static getInstance(): TaskQueue {
+    if (!TaskQueue.instance) {
+      TaskQueue.instance = new TaskQueue();
+    }
+    return TaskQueue.instance;
+  }
+
   private isRunning = false;
   private workerInterval: NodeJS.Timeout | null = null;
 
@@ -240,7 +249,7 @@ export class TaskQueue {
           JSON.stringify({
             runId: runId,
             status: crashPayload.status,
-            finalResult: crashPayload.finalResult,
+            finalResult: "ERROR",
             finalReason: crashPayload.finalReason,
             event: "completed",
             timestamp: new Date().toISOString(),
@@ -313,10 +322,9 @@ export class TaskQueue {
           })
         ]);
       } else {
-        // 計算 finalResult 且 status = "done"
+        // 計算 status 且更新
         const allPassed = task.runs.every(r => r.status === "passed");
-        task.finalResult = allPassed ? "PASS" : "FAIL";
-        task.status = "done";
+        task.status = allPassed ? "passed" : "failed";
         task.finishedAt = new Date();
         await taskRepo.save(task);
 
@@ -326,7 +334,6 @@ export class TaskQueue {
             event: "completed",
             doneCount: task.doneCount,
             totalCount: task.totalCount,
-            finalResult: task.finalResult,
             status: task.status
           })
         ]);

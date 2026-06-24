@@ -1,5 +1,6 @@
 import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2, Play, Edit2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { StatusBadge } from "./StatusBadge"
 
 export interface FlatTreeRow {
   id: string;
@@ -57,44 +58,7 @@ export function GroupTreeNode({
     }
   }
 
-  // 渲染狀態 Badge
-  const renderStatusBadge = (status?: string) => {
-    if (!status) return <span className="text-zinc-600">-</span>;
-    
-    switch (status) {
-      case "passed":
-        return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            Passed
-          </span>
-        )
-      case "failed":
-        return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            Failed
-          </span>
-        )
-      case "running":
-        return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 animate-pulse">
-            Running
-          </span>
-        )
-      case "error":
-        return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            Error
-          </span>
-        )
-      case "pending":
-      default:
-        return (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-            Pending
-          </span>
-        )
-    }
-  }
+
 
   // 1. Loading Row 渲染
   if (row.type === "loading") {
@@ -234,7 +198,13 @@ export function GroupTreeNode({
 
       {/* 欄位 4: 最後執行狀態 */}
       <td className="px-6 py-4 text-right">
-        {row.type === "testcase" ? renderStatusBadge(row.lastStatus) : <span className="text-zinc-600">-</span>}
+        {row.type === "testcase" && row.lastStatus ? (
+          <div className="inline-flex">
+            <StatusBadge status={row.lastStatus} />
+          </div>
+        ) : (
+          <span className="text-zinc-600">-</span>
+        )}
       </td>
     </tr>
   )

@@ -95,8 +95,7 @@ export interface Task {
   id: string;
   scope: "project" | "group" | "testcase";
   scopeId: string;
-  status: "pending" | "running" | "done";
-  finalResult: "PASS" | "FAIL" | null;
+  status: "pending" | "running" | "passed" | "failed" | "error";
   totalCount: number;
   doneCount: number;
   createdAt: string;

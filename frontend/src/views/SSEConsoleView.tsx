@@ -94,28 +94,30 @@ export default function SSEConsoleView() {
       <ScrollArea className="flex-1 bg-zinc-950/40">
         <div className="flex flex-col w-full space-y-6">
           {/* 視覺斷言報告 (當有最終結果時，顯示在上方) */}
-          {runStatus?.finalResult && (
+          {runStatus && ["passed", "failed", "error"].includes(runStatus.status) && (
             <div className="flex-shrink-0 animate-fadeIn mx-auto w-full">
               <div
                 className={cn(
                   "border rounded-xl p-5 flex flex-col gap-3.5 shadow-md",
-                  runStatus.finalResult === "PASS"
+                  runStatus.status === "passed"
                     ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-400"
+                    : runStatus.status === "error"
+                    ? "bg-amber-950/20 border-amber-500/30 text-amber-400"
                     : "bg-rose-950/20 border-rose-500/30 text-rose-400",
                 )}
               >
                 <div className="flex items-center gap-2">
-                  {runStatus.finalResult === "PASS" ? (
+                  {runStatus.status === "passed" ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                   ) : (
                     <XCircle className="w-5 h-5 text-rose-500" />
                   )}
                   <h4 className="text-sm font-bold">
-                    結果 ({runStatus.finalResult})
+                    結果 ({runStatus.finalResult || runStatus.status.toUpperCase()})
                   </h4>
                 </div>
                 <p className="text-xs leading-relaxed whitespace-pre-wrap">
-                  {runStatus.finalReason}
+                  {runStatus.finalReason || (runStatus.status === "error" ? "測試執行發生嚴重異常" : "測試未通過")}
                 </p>
                 {runStatus.totalTokens !== undefined &&
                   runStatus.totalTokens > 0 && (

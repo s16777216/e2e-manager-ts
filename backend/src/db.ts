@@ -52,6 +52,25 @@ export async function initDB() {
         migratedStepsBackup = await queryRunner.query(`SELECT id, steps FROM testcase WHERE steps IS NOT NULL`);
       }
     }
+
+    const taskTableExists = await queryRunner.hasTable("task");
+    if (taskTableExists) {
+      const hasFinalResult = await queryRunner.hasColumn("task", "finalResult");
+      if (hasFinalResult) {
+        console.log("[DB Migration] 檢測到舊有的 Task.finalResult 欄位，正在進行數據升級...");
+        await queryRunner.query(
+          `UPDATE task SET status = 'passed' WHERE status = 'done' AND "finalResult" = 'PASS'`
+        );
+        await queryRunner.query(
+          `UPDATE task SET status = 'failed' WHERE status = 'done' AND "finalResult" = 'FAIL'`
+        );
+        await queryRunner.query(
+          `UPDATE task SET status = 'error' WHERE status = 'done' AND "finalResult" IS NULL`
+        );
+        console.log("[DB Migration] 既存 Task 資料轉換完成。");
+      }
+    }
+
     await queryRunner.release();
   } catch (e: any) {
     console.error("[DB Migration] 臨時資料備份失敗：", e.message);
@@ -135,8 +154,7 @@ export async function initDB() {
     const taskResult = await AppDataSource.createQueryBuilder()
       .update(Task)
       .set({
-        status: "done",
-        finalResult: "FAIL",
+        status: "failed",
         finishedAt: new Date(),
       })
       .where("status IN (:...statuses)", { statuses: ["running", "pending"] })

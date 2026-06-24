@@ -41,7 +41,7 @@ async function start() {
   await initDB();
 
   // 2. 啟動背景 Worker 佇列
-  const queue = new TaskQueue();
+  const queue = TaskQueue.getInstance();
   queue.startWorker(queuePort);
 
   // 3. 啟動 Hono HTTP 伺服器

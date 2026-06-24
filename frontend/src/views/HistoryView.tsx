@@ -84,12 +84,8 @@ export default function HistoryView() {
       selectedProjectId === "all" || t.projectId === selectedProjectId;
 
     let matchStatus = true;
-    if (selectedStatus === "done-pass") {
-      matchStatus = t.status === "done" && t.finalResult === "PASS";
-    } else if (selectedStatus === "done-fail") {
-      matchStatus = t.status === "done" && t.finalResult === "FAIL";
-    } else if (selectedStatus === "running") {
-      matchStatus = t.status === "running" || t.status === "pending";
+    if (selectedStatus !== "all") {
+      matchStatus = t.status === selectedStatus;
     }
 
     return matchProject && matchStatus;
@@ -145,9 +141,11 @@ export default function HistoryView() {
             </SelectTrigger>
             <SelectContent className="bg-zinc-900 border-zinc-850 text-zinc-300">
               <SelectItem value="all">所有狀態</SelectItem>
-              <SelectItem value="done-pass">成功 (PASS)</SelectItem>
-              <SelectItem value="done-fail">失敗 (FAIL)</SelectItem>
-              <SelectItem value="running">執行中</SelectItem>
+              <SelectItem value="passed">成功 (passed)</SelectItem>
+              <SelectItem value="failed">失敗 (failed)</SelectItem>
+              <SelectItem value="error">異常 (error)</SelectItem>
+              <SelectItem value="running">執行中 (running)</SelectItem>
+              <SelectItem value="pending">排隊中 (pending)</SelectItem>
             </SelectContent>
           </Select>
         </div>

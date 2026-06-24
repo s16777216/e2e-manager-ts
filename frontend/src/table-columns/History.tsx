@@ -1,7 +1,7 @@
 import type { Task } from "@/types/api";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../components/custom/table/ColumnHeader";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { StatusBadge } from "../components/custom/StatusBadge";
 
 export const columns: ColumnDef<Task>[] = [
   {
@@ -29,42 +29,56 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "scope",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="範圍" />
+      <DataTableColumnHeader column={column} title="執行範圍" />
     ),
     cell: ({ row }) => {
-      const scope = row.original.scope;
-      return scope === "project"
-        ? "專案"
-        : scope === "group"
-          ? "群組"
-          : "單一案例";
+      const scopeMap = {
+        project: "全專案",
+        group: "測試群組",
+        testcase: "單一案例",
+      };
+      return (
+        <span className="text-zinc-400">
+          {scopeMap[row.original.scope as keyof typeof scopeMap] || "未知"}
+        </span>
+      );
     },
   },
   {
-    accessorKey: "progress",
+    accessorKey: "totalCount",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="進度 (完成 / 總數)" />
+      <DataTableColumnHeader column={column} title="案例總數" />
     ),
     cell: ({ row }) => (
-      <span className="font-mono text-xs">
-        {row.original.doneCount} / {row.original.totalCount}
+      <span className="font-mono text-zinc-400">
+        {row.original.totalCount}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "doneCount",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="已完成" />
+    ),
+    cell: ({ row }) => (
+      <span className="font-mono text-zinc-400">
+        {row.original.doneCount}
       </span>
     ),
   },
   {
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader
-        column={column}
-        title="建立時間"
-        className="flex justify-center"
-      />
+      <DataTableColumnHeader column={column} title="啟動時間" />
     ),
-    cell: ({ row }) => (
-      <div className="text-center text-xs font-mono text-zinc-400">
-        {row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : "-"}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const date = new Date(row.original.createdAt);
+      return (
+        <span className="text-zinc-400 font-mono">
+          {date.toLocaleString("zh-TW")}
+        </span>
+      );
+    },
   },
   {
     accessorKey: "totalTokens",
@@ -94,19 +108,10 @@ export const columns: ColumnDef<Task>[] = [
       />
     ),
     cell: ({ row }) => {
-      const { status, finalResult } = row.original;
+      const { status } = row.original;
       return (
         <div className="flex justify-center">
-          {status !== "done" ? (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium w-max">
-              <Loader2 size={10} className="animate-spin text-emerald-500" />{" "}
-              執行中
-            </span>
-          ) : finalResult === "PASS" ? (
-            <CheckCircle size={16} className="text-emerald-400" />
-          ) : (
-            <XCircle size={16} className="text-red-400" />
-          )}
+          <StatusBadge status={status} showText={false} size={16} />
         </div>
       );
     },

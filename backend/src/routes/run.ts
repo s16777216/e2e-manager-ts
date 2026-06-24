@@ -291,7 +291,10 @@ runRouter.get("/runs/:runId", async (c) => {
 runRouter.delete("/runs/:runId", async (c) => {
   const runId = c.req.param("runId");
   const runRepo = AppDataSource.getRepository(TestRun);
-  const run = await runRepo.findOne({ where: { id: runId } });
+  const run = await runRepo.findOne({
+    where: { id: runId },
+    relations: { task: true }
+  });
   if (!run) return c.json({ error: "找不到該任務紀錄" }, 404);
 
   if (run.status === "pending") {
@@ -300,6 +303,11 @@ runRouter.delete("/runs/:runId", async (c) => {
     run.finalReason = "任務已被使用者取消";
     run.finishedAt = new Date();
     await runRepo.save(run);
+
+    if (run.task) {
+      const { TaskQueue } = await import("../queue.js");
+      await TaskQueue.getInstance().updateTaskProgress(run.task.id);
+    }
 
     await runRepo.query(`SELECT pg_notify('test_run_logs', $1)`, [
       JSON.stringify({

@@ -17,6 +17,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "../components/custom/StatusBadge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -233,20 +234,7 @@ export default function TestCaseDetailView() {
     }
   };
 
-  // 狀態徽章輔助元件
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case "passed":
-        return <CheckCircle size={16} className="text-emerald-400" />;
-      case "failed":
-      case "error":
-        return <XCircle size={16} className="text-red-400" />;
-      case "running":
-        return <Loader2 size={16} className="animate-spin text-primary" />;
-      default:
-        return <Clock size={16} className="text-zinc-400" />;
-    }
-  };
+
 
   if (isLoading) {
     return (
@@ -300,12 +288,7 @@ export default function TestCaseDetailView() {
       cell: ({ row }) => {
         const status = row.original.status;
         return (
-          <div className="flex items-center gap-2">
-            {renderStatusBadge(status)}
-            <span className="text-zinc-400 text-xs font-mono capitalize">
-              {status}
-            </span>
-          </div>
+          <StatusBadge status={status} />
         );
       },
     },
