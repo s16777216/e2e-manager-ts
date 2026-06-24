@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { TestRunStep, TestcaseStep } from "../../types/api";
 import { cn } from "../../lib/utils";
+import { Timeline, TimelineItem } from "../shadcn-studio/blocks/timeline-component-05/timeline-component-05";
 
 interface StepAccordionProps {
   steps: TestRunStep[];
@@ -235,10 +236,7 @@ function StepCard({
             )}
           </div>
         ) : (
-          <div className="relative pl-6 space-y-6">
-            {/* Timeline Vertical Line */}
-            <div className="absolute top-1.5 bottom-1.5 left-2.5 w-0.5 bg-zinc-800/60" />
-
+          <Timeline>
             {step.logs?.map((log, index) => {
               const logHasError =
                 log.result?.toLowerCase().includes("fail") ||
@@ -246,30 +244,41 @@ function StepCard({
               const isLogPending =
                 log.result?.toLowerCase() === "pending" ||
                 log.result?.toLowerCase() === "running";
+              const isItemLast = !step.stepExpected && index === (step.logs?.length ?? 0) - 1;
+
+              const logDot = (
+                <span className={cn(
+                  "flex size-4.5 shrink-0 items-center justify-center rounded-full transition-colors duration-300",
+                  logHasError
+                    ? "bg-rose-500/20"
+                    : isLogPending
+                      ? "bg-emerald-500/20 animate-pulse"
+                      : "bg-zinc-700/20"
+                )}>
+                  <span className={cn(
+                    "size-2.5 rounded-full border",
+                    logHasError
+                      ? "bg-rose-500 border-rose-400 shadow-sm shadow-rose-500/50"
+                      : isLogPending
+                        ? "bg-emerald-500 border-emerald-400 animate-pulse"
+                        : "bg-zinc-700 border-zinc-600 group-hover/item:bg-zinc-500"
+                  )} />
+                </span>
+              );
 
               return (
-                <div key={log.id || index} className="relative group/item animate-fadeIn">
-                  {/* Timeline Dot */}
-                  <div
-                    className={cn(
-                      "absolute -left-[20px] top-1.5 w-2 h-2 rounded-full border transition-colors duration-300",
-                      logHasError
-                        ? "bg-rose-500 border-rose-400 shadow-sm shadow-rose-500/50"
-                        : isLogPending
-                          ? "bg-emerald-500 border-emerald-400 animate-pulse"
-                          : "bg-zinc-700 border-zinc-600 group-hover/item:bg-zinc-500",
-                    )}
-                  />
-
-                  {/* Log Content */}
-                  <div className="space-y-2">
+                <TimelineItem
+                  key={log.id || index}
+                  compact={true}
+                  dot={logDot}
+                  isLast={isItemLast}
+                >
+                  <div className="space-y-2 -mt-1.5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1">
-                        {/* Action Description */}
                         <div className="font-mono text-xs text-zinc-300 font-semibold bg-zinc-900/90 px-2 py-0.5 rounded border border-zinc-800 inline-block">
                           {log.action || "執行操作..."}
                         </div>
-                        {/* Action Result */}
                         <p
                           className={cn(
                             "text-xs leading-relaxed",
@@ -283,7 +292,6 @@ function StepCard({
                       </div>
                     </div>
 
-                    {/* AI Response Card */}
                     {log.aiResponse && (
                       <div className="bg-indigo-950/10 text-indigo-300/90 border border-indigo-900/30 rounded-lg p-3 text-xs space-y-1.5 leading-relaxed mt-2 animate-fadeIn">
                         <div className="flex items-center gap-1.5 font-medium text-[11px] text-indigo-400">
@@ -296,22 +304,31 @@ function StepCard({
                       </div>
                     )}
                   </div>
-                </div>
+                </TimelineItem>
               );
             })}
 
-            {/* 若執行完畢且有 expected 資訊，在時間軸底端渲染預期成果 */}
             {step.stepExpected && (
-              <div className="relative group/item mt-4 pt-2 border-t border-zinc-900/60 animate-fadeIn">
-                <div className="text-[11px] text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-900 max-w-xl">
-                  <span className="font-semibold text-zinc-500 block mb-1 text-[10px] uppercase tracking-wider">
-                    此步驟預期完成結果：
+              <TimelineItem
+                compact={true}
+                isLast={true}
+                dot={
+                  <span className="bg-indigo-500/20 flex size-4.5 shrink-0 items-center justify-center rounded-full">
+                    <span className="bg-indigo-500 size-2.5 rounded-full border border-indigo-400 shadow-sm shadow-indigo-500/50" />
                   </span>
-                  <span className="text-zinc-300">{step.stepExpected}</span>
+                }
+              >
+                <div className="relative group/item mt-0.5 animate-fadeIn">
+                  <div className="text-[11px] text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-900 max-w-xl">
+                    <span className="font-semibold text-zinc-500 block mb-1 text-[10px] uppercase tracking-wider">
+                      此步驟預期完成結果：
+                    </span>
+                    <span className="text-zinc-300">{step.stepExpected}</span>
+                  </div>
                 </div>
-              </div>
+              </TimelineItem>
             )}
-          </div>
+          </Timeline>
         )}
 
         {/* Screenshot View */}
