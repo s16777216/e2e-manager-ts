@@ -7,6 +7,8 @@ type TypographyType =
   | "h2"
   | "h3"
   | "h4"
+  | "h5"
+  | "h6"
   | "p"
   | "blockquote"
   | "inlineCode"
@@ -39,8 +41,16 @@ const map: {
     className: "scroll-m-20 text-xl font-semibold tracking-tight",
     tag: "h4",
   },
+  h5: {
+    className: "scroll-m-20 text-lg font-semibold tracking-tight",
+    tag: "h5",
+  },
+  h6: {
+    className: "scroll-m-20 text-sm font-semibold tracking-tight",
+    tag: "h6",
+  },
   p: {
-    className: "leading-7 [&:not(:first-child)]:mt-6",
+    className: "leading-7",
     tag: "p",
   },
   blockquote: {

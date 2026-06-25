@@ -2,15 +2,13 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
 import SidebarHeader from "./SidebarHeader";
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import SidebarContainer from "./SidebarContainer";
 import SidebarItem from "./SidebarItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SidebarFooter from "./SidebarFooter";
+import CustomSidebarTrigger from "./CustomSidebarTrigger";
+import { Separator } from "@/components/ui/separator";
 
 export interface BreadcrumbItem {
   label: string;
@@ -34,12 +32,13 @@ export default function RootLayout() {
         </SidebarItem>
       </SidebarContainer>
 
-      {/* 2. 右側主要工作區 (Workspace) */}
+      {/* 右側主要工作區 (Workspace) */}
       <SidebarInset className="m-0! p-2 h-full overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0 bg-background relative">
           {/* Header 區塊：水平排列 SidebarTrigger 與全域麵包屑 */}
-          <div className="flex items-center border-b px-6 flex-shrink-0 bg-zinc-950/20 backdrop-blur-md">
-            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          <div className="flex items-center border-b px-3 flex-shrink-0 bg-zinc-950/20 backdrop-blur-md">
+            <CustomSidebarTrigger className="text-muted-foreground hover:text-foreground" />
+            <Separator orientation="vertical" className="h-8 my-auto mx-3" />
             <div className="flex-1">
               <Topbar breadcrumbs={breadcrumbs} />
             </div>
