@@ -1,15 +1,16 @@
-import { createBrowserRouter, Navigate } from "react-router-dom"
-import RootLayout from "./layouts/RootLayout"
-import WelcomeView from "./views/WelcomeView"
-import ProjectsView from "./views/ProjectsView"
-import ProjectDetailView from "./views/ProjectDetailView"
-import TestCaseDetailView from "./views/TestCaseDetailView"
-import SSEConsoleView from "./views/SSEConsoleView"
-import TaskDetailView from "./views/TaskDetailView"
-import HistoryView from "./views/HistoryView"
-import ProjectCreateView from "./views/ProjectCreateView"
-import ProjectEditView from "./views/ProjectEditView"
-import SettingsView from "./views/SettingsView"
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import RootLayout from "./layouts/RootLayout";
+import WelcomeView from "./views/WelcomeView";
+import ProjectsView from "./views/ProjectsView";
+import ProjectDetailView from "./views/ProjectDetailView";
+import TestCaseDetailView from "./views/TestCaseDetailView";
+import SSEConsoleView from "./views/SSEConsoleView";
+import TaskDetailView from "./views/TaskDetailView";
+import HistoryView from "./views/HistoryView";
+import ProjectCreateView from "./views/ProjectCreateView";
+import ProjectEditView from "./views/ProjectEditView";
+import SettingsView from "./views/SettingsView";
+import TestFormView from "./views/TestFormView";
 
 export const router = createBrowserRouter([
   {
@@ -18,50 +19,52 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <WelcomeView />
+        element: <WelcomeView />,
       },
       {
         path: "project",
-        element: <ProjectsView />
+        element: <ProjectsView />,
       },
       {
         path: "project/new",
-        element: <ProjectCreateView />
+        element: <ProjectCreateView />,
       },
       {
         path: "project/:projectId/edit",
-        element: <ProjectEditView />
+        element: <ProjectEditView />,
       },
       {
         path: "tasks",
-        element: <HistoryView />
+        element: <HistoryView />,
       },
       {
         path: "project/:projectId",
-        element: <ProjectDetailView />
+        element: <ProjectDetailView />,
       },
       {
         path: "project/:projectId/testCase/:testCaseId",
-        element: <TestCaseDetailView />
+        element: <TestCaseDetailView />,
       },
       {
         path: "project/:projectId/run/:runId",
-        element: <SSEConsoleView />
+        element: <SSEConsoleView />,
       },
       {
         path: "project/:projectId/tasks/:taskId",
-        element: <TaskDetailView />
+        element: <TaskDetailView />,
       },
       {
         path: "settings",
-        element: <SettingsView />
+        element: <SettingsView />,
+      },
+      {
+        path: "testform",
+        element: <TestFormView />,
       },
       {
         path: "*",
-        element: <Navigate to="/" replace />
-      }
-    ]
-  }
-])
-
-
+        element: <Navigate to="/" replace />,
+      },
+    ],
+  },
+]);
