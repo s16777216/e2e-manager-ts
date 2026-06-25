@@ -92,7 +92,7 @@ export default function HistoryView() {
   });
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8 animate-fadeIn">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground select-none p-8 animate-fadeIn">
       {/* 頂部 Header */}
       <div className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
         <div>
@@ -107,7 +107,7 @@ export default function HistoryView() {
       </div>
 
       {/* 篩選控制項 */}
-      <div className="max-w-6xl w-full mx-auto flex flex-wrap items-center gap-4 mb-6 bg-zinc-900/10 border border-zinc-850/40 p-4 rounded-xl backdrop-blur-sm">
+      <div className="w-full mx-auto flex flex-wrap items-center gap-4 mb-6 bg-zinc-900/10 border border-zinc-850/40 p-4 rounded-xl backdrop-blur-sm">
         <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
           <Filter size={12} />
           <span>篩選條件</span>
@@ -152,7 +152,7 @@ export default function HistoryView() {
       </div>
 
       {/* 歷史任務表格 */}
-      <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col">
+      <div className="w-full mx-auto flex-1 flex flex-col">
         <DataTable
           columns={columns}
           data={filteredTasks}

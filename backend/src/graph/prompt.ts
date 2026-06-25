@@ -8,13 +8,11 @@ export function buildExecutorSystemPrompt(params: {
   stepExpected?: string;
   currentUrl: string;
 }): string {
-  const expectedText = params.stepExpected ? `- Step Expected Outcome: "${params.stepExpected}"\n\n` : `\n`;
   return (
     `# Role & Objective\n` +
     `You are a professional Web E2E automation testing AI agent.\n` +
     `- Current Test Case: ${params.testName}\n` +
-    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
-    expectedText +
+    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n\n` +
     `# Context\n` +
     `- Current Webpage URL: ${params.currentUrl}\n\n` +
     `# Instructions\n` +
@@ -22,16 +20,41 @@ export function buildExecutorSystemPrompt(params: {
     `# CRITICAL CONSTRAINTS & RULES\n` +
     `1. MUST CALL A TOOL: Every response MUST invoke at least one tool. DO NOT reply with plain text or explanations alone.\n` +
     `2. DO NOT REPEAT: DO NOT call the same tool with the exact same parameters consecutively if it did not change the page state. Avoid redundant actions.\n` +
-    `3. FINISH STEP IMMEDIATELY: As soon as you confirm the objective of the current step is met, you MUST immediately call the 'finish_step' tool to complete this step. DO NOT perform any extra actions beyond this step's description.\n` +
-    `   - If 'Step Expected Outcome' is provided: You MUST verify that the webpage state or DOM satisfies this expected outcome before calling 'finish_step'.\n` +
-    `     * SPECIAL CASE (No visible changes): If the outcome indicates there are no visible page changes, or that you should finish immediately, call 'finish_step' immediately after the action tool executes successfully.\n` +
-    `   - If NO 'Step Expected Outcome' is provided: DO NOT perform any state or content validation. Once your action tool (e.g., clicking a button, typing in an input, or waiting) executes successfully with no error message, you MUST call 'finish_step' immediately to finish the step. DO NOT repeat the same action.\n` +
-    `4. NO REPETITIVE NAVIGATION: If the goal of the current step is to navigate to a page/URL, and the current URL is already at or matches the target URL, you MUST call 'finish_step' immediately. DO NOT call 'navigate_to' again.\n` +
+    `3. DONE ACTING: As soon as you confirm that all actions requested in the current step description (e.g., click a button, input text, navigate, wait) have been executed successfully, you MUST call the 'done_acting' tool. Do NOT attempt to verify step outcomes or expected results; a separate validation agent will verify if the expected result is met.\n` +
+    `4. NO REPETITIVE NAVIGATION: If the goal of the current step is to navigate to a page/URL, and the current URL is already at or matches the target URL, you MUST call 'done_acting' immediately. DO NOT call 'navigate_to' again.\n` +
     `5. ELEMENT SELECTION: Prefer using the 'selector' attribute value specified in the simplified DOM for clicking or typing actions.\n` +
     `6. WAITING: If the page is loading or the target element is not found, use the 'wait_for_seconds' tool to wait.\n` +
     `7. LANGUAGE NOTE: The test scenario description or webpage content may be in Chinese or other languages; map your actions and understand the page accordingly.`
   );
 }
+
+/**
+ * 拼裝 AI Step Asserter 步驟視覺斷言的 System Prompt
+ */
+export function buildStepAsserterSystemPrompt(params: {
+  testName: string;
+  stepIdx: number;
+  stepContent: string;
+  stepExpected: string;
+}): string {
+  return (
+    `# Role & Objective\n` +
+    `You are a professional Web E2E test step verification AI auditor.\n\n` +
+    `# Context\n` +
+    `- Test Case Name: ${params.testName}\n` +
+    `- Current Step (${params.stepIdx + 1}): "${params.stepContent}"\n` +
+    `- Step Expected Outcome: "${params.stepExpected}"\n\n` +
+    `# Instructions\n` +
+    `We have just performed actions for this test step. Analyze the current webpage screenshot and determine if the current page state satisfies the "Step Expected Outcome" specified above.\n\n` +
+    `# Rules\n` +
+    `1. Use structured response formats to output your assertion.\n` +
+    `2. Decide the result strictly as either PASS or FAIL.\n` +
+    `3. PASS: The current screenshot and page state satisfy the Step Expected Outcome.\n` +
+    `4. FAIL: The current screenshot and page state do NOT satisfy the Step Expected Outcome.\n` +
+    `5. Provide a detailed, clear explanation for your decision in English. If it fails, explain exactly what is missing or incorrect so the executor agent can retry and fix it.`
+  );
+}
+
 
 /**
  * 拼裝 AI Asserter 最終視覺斷言的 System Prompt

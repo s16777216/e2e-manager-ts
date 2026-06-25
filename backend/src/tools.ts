@@ -111,19 +111,19 @@ export class BrowserTools {
       }
     );
 
-    const finish_step = tool(
+    const done_acting = tool(
       async ({ message }) => {
-        return `FINISH_STEP: ${message}`;
+        return `DONE_ACTING: ${message}`;
       },
       {
-        name: "finish_step",
-        description: "宣告當前的測試步驟已經成功完成。當你確認當前步驟目標已達成，你必須呼叫此工具。",
+        name: "done_acting",
+        description: "宣告當前測試步驟中要求的所有必要動作（Action）已經執行完畢。當你確認已經在瀏覽器上點擊、輸入或操作完該步驟指定的所有動作後，你必須呼叫此工具，將控制權交回給框架以進行下一步或斷言驗證。",
         schema: z.object({
-          message: z.string().describe("完成步驟的總結說明")
+          message: z.string().describe("動作執行的總結說明")
         })
       }
     );
 
-    return [navigate_to, click_element, input_text, wait_for_seconds, finish_step];
+    return [navigate_to, click_element, input_text, wait_for_seconds, done_acting];
   }
 }
