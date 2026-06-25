@@ -9,6 +9,7 @@ import TaskDetailView from "./views/TaskDetailView"
 import HistoryView from "./views/HistoryView"
 import ProjectCreateView from "./views/ProjectCreateView"
 import ProjectEditView from "./views/ProjectEditView"
+import SettingsView from "./views/SettingsView"
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
       {
         path: "project/:projectId/tasks/:taskId",
         element: <TaskDetailView />
+      },
+      {
+        path: "settings",
+        element: <SettingsView />
       },
       {
         path: "*",

@@ -1,5 +1,6 @@
 import { useProjectData } from "@/hooks/useProjectData";
 import { Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function SidebarFooter() {
   const { isOnline } = useProjectData();
@@ -13,10 +14,12 @@ export default function SidebarFooter() {
           {isOnline ? "連線正常" : "伺服器斷線"}
         </span>
       </div>
-      <Settings
-        size={14}
-        className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-      />
+      <Link to="/settings" className="flex items-center">
+        <Settings
+          size={14}
+          className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+        />
+      </Link>
     </div>
   );
 }

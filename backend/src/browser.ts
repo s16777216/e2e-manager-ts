@@ -2,6 +2,7 @@ import { chromium, Browser, BrowserContext, Page } from "playwright";
 import * as fs from "fs";
 import * as path from "path";
 import { calculateSelector } from "./browser/selector.js";
+import { getSettings } from "./services/settingsService.js";
 
 export class BrowserManager {
   public browser: Browser | null = null;
@@ -16,20 +17,34 @@ export class BrowserManager {
   /**
    * 初始化 Playwright 並開啟瀏覽器
    */
-  async initBrowser(headless: boolean = true) {
+  async initBrowser(headlessOverride?: boolean) {
+    const settings = await getSettings();
+
+    // 優先度判定：環境變數 > 明確傳入參數 > 資料庫設定值
+    let finalHeadless = settings.headless;
+    if (process.env.CI || process.env.HEADLESS_FORCE) {
+      finalHeadless = true;
+    } else if (headlessOverride !== undefined) {
+      finalHeadless = headlessOverride;
+    }
+
+    const width = settings.viewportWidth;
+    const height = settings.viewportHeight;
+
     this.browser = await chromium.launch({
-      headless,
+      headless: finalHeadless,
+      slowMo: settings.slowMo,
       channel: "chrome",
       args: ["--disable-web-security", "--no-sandbox"],
     });
     this.context = await this.browser.newContext({
-      viewport: { width: this.viewportWidth, height: this.viewportHeight },
+      viewport: { width, height },
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       ignoreHTTPSErrors: true, // 忽略自簽憑證 SSL 安全警告
     });
     this.page = await this.context.newPage();
-    this.page.setDefaultTimeout(10000);
+    this.page.setDefaultTimeout(settings.defaultTimeout);
   }
 
   /**

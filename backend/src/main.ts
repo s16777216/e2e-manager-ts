@@ -140,7 +140,8 @@ async function main() {
     process.exit(1);
   });
 
-  await browserManager.initBrowser(!headed);
+  // 若有帶 --headed 則強制開啟 headed (false)，否則依循資料庫全域設定
+  await browserManager.initBrowser(headed ? false : undefined);
 
   // 5. 建立與編譯 LangGraph
   const builder = new E2EGraphBuilder(browserManager);

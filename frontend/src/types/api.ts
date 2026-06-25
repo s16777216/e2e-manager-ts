@@ -105,3 +105,14 @@ export interface Task {
   projectName?: string;
   totalTokens?: number;
 }
+
+export interface SystemSettings {
+  id: string;
+  headless: boolean;
+  viewportWidth: number;
+  viewportHeight: number;
+  slowMo: number;
+  defaultTimeout: number;
+  createdAt: string;
+  updatedAt: string;
+}

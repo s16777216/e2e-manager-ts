@@ -165,8 +165,8 @@ export class TaskQueue {
     const browserManager = new BrowserManager();
 
     try {
-      // 初始化 Playwright 瀏覽器 (預設為 headless 模式)
-      await browserManager.initBrowser(true);
+      // 初始化 Playwright 瀏覽器 (由全域資料庫設定控制)
+      await browserManager.initBrowser();
 
       // 注入 Cookie 與 LocalStorage
       if (browserManager.context) {

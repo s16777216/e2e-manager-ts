@@ -10,6 +10,7 @@ import { groupRouter } from "./routes/group.js";
 import { testcaseRouter } from "./routes/testcase.js";
 import { runRouter } from "./routes/run.js";
 import { taskRouter } from "./routes/task.js";
+import { settingsRouter } from "./routes/settings.js";
 
 const app = new Hono();
 
@@ -19,6 +20,7 @@ app.route("/api", groupRouter);
 app.route("/api", testcaseRouter);
 app.route("/api", runRouter);
 app.route("/api", taskRouter);
+app.route("/api", settingsRouter);
 
 // 託管前端編譯出來的靜態資源，並支援 SPA 路由
 app.use("/*", serveStatic({

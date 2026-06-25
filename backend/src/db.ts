@@ -10,6 +10,7 @@ import { TestLog } from "./entities/TestLog.js";
 import { Task } from "./entities/Task.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
 import { TestcaseStep } from "./entities/TestcaseStep.js";
+import { SystemSetting } from "./entities/SystemSetting.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -18,7 +19,7 @@ export const AppDataSource = new DataSource({
   url: databaseUrl || "postgres://postgres:postgres@localhost:5432/e2e_manager",
   synchronize: true, // 自動同步 Schema 到資料庫
   logging: false,
-  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep, TestcaseStep],
+  entities: [Project, TestGroup, Testcase, TestRun, TestLog, Task, TestRunStep, TestcaseStep, SystemSetting],
   extra: {
     max: 1, // 限制連線池大小為 1，防範 WSL2 Mirrored 網路的 TCP 重複連線 bug
   },
@@ -94,6 +95,19 @@ export async function initDB() {
   }
   
   console.log("[DB] 資料庫連線初始化成功。");
+
+  // 初始化全域設定預設值
+  try {
+    const settingRepo = AppDataSource.getRepository(SystemSetting);
+    const count = await settingRepo.count();
+    if (count === 0) {
+      const defaultSetting = new SystemSetting();
+      await settingRepo.save(defaultSetting);
+      console.log("[DB] 檢測到系統設定為空，已成功寫入預設設定。");
+    }
+  } catch (err: any) {
+    console.error("[DB] 初始化系統設定失敗：", err.message);
+  }
 
   // 寫入步驟遷移資料
   if (migratedStepsBackup.length > 0) {

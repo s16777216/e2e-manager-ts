@@ -10,6 +10,7 @@ import {
 import SidebarContainer from "./SidebarContainer";
 import SidebarItem from "./SidebarItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import SidebarFooter from "./SidebarFooter";
 
 export interface BreadcrumbItem {
   label: string;
@@ -21,7 +22,7 @@ export default function RootLayout() {
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
-      <SidebarContainer header={<SidebarHeader />}>
+      <SidebarContainer header={<SidebarHeader />} footer={<SidebarFooter />}>
         <SidebarItem icon="home" path="/">
           首頁
         </SidebarItem>
