@@ -1,5 +1,11 @@
 import React from "react";
-import { CheckCircle2, XCircle, Clock, Loader2, AlertCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export interface StatusBadgeProps {
@@ -25,28 +31,28 @@ export function StatusBadge({
     }
   > = {
     pending: {
-      bg: "bg-zinc-900/60 border-zinc-800/80 text-zinc-400",
+      bg: "text-zinc-400",
       icon: Clock,
       text: "排隊中",
     },
     running: {
-      bg: "bg-emerald-950/15 border-emerald-500/20 text-emerald-400",
+      bg: "text-emerald-400",
       icon: Loader2,
       text: "執行中",
       animate: true,
     },
     passed: {
-      bg: "bg-emerald-950/20 border-emerald-500/30 text-emerald-400",
+      bg: "text-emerald-400",
       icon: CheckCircle2,
       text: "成功",
     },
     failed: {
-      bg: "bg-rose-950/20 border-rose-500/30 text-rose-400",
+      bg: "text-rose-400",
       icon: XCircle,
       text: "失敗",
     },
     error: {
-      bg: "bg-amber-950/20 border-amber-500/30 text-amber-400",
+      bg: "text-amber-400",
       icon: AlertCircle,
       text: "異常",
     },
@@ -58,17 +64,14 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-semibold w-max select-none transition-all duration-300 backdrop-blur-md",
+        "flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] font-semibold w-max select-none",
         current.bg,
-        className
+        className,
       )}
     >
       <Icon
         size={size}
-        className={cn(
-          "flex-shrink-0",
-          current.animate && "animate-spin"
-        )}
+        className={cn("flex-shrink-0", current.animate && "animate-spin")}
       />
       {showText && <span>{current.text}</span>}
     </span>

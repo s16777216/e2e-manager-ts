@@ -50,9 +50,7 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="案例總數" />
     ),
     cell: ({ row }) => (
-      <span className="font-mono text-zinc-400">
-        {row.original.totalCount}
-      </span>
+      <span className="font-mono text-zinc-400">{row.original.totalCount}</span>
     ),
   },
   {
@@ -61,9 +59,7 @@ export const columns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title="已完成" />
     ),
     cell: ({ row }) => (
-      <span className="font-mono text-zinc-400">
-        {row.original.doneCount}
-      </span>
+      <span className="font-mono text-zinc-400">{row.original.doneCount}</span>
     ),
   },
   {
@@ -111,7 +107,7 @@ export const columns: ColumnDef<Task>[] = [
       const { status } = row.original;
       return (
         <div className="flex justify-center">
-          <StatusBadge status={status} showText={false} size={16} />
+          <StatusBadge status={status} size={16} />
         </div>
       );
     },
