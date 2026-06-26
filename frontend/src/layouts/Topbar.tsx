@@ -1,5 +1,7 @@
+import { Separator } from "@/components/ui/separator";
 import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import CustomSidebarTrigger from "./CustomSidebarTrigger";
 
 export interface BreadcrumbItem {
   label: string;
@@ -15,7 +17,12 @@ export default function Topbar(props: TopbarProps) {
   const navigate = useNavigate();
 
   return (
-    <header className="h-16 flex items-center px-6 flex-shrink-0 bg-zinc-950/20 backdrop-blur-md gap-2 select-none">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <CustomSidebarTrigger className="-ml-1" />
+      <Separator
+        orientation="vertical"
+        className="mr-2 data-[orientation=vertical]:h-4 self-center!"
+      />
       {/* 全域麵包屑 Header - 固定 h-16 且帶有 border-b */}
       {breadcrumbs.length > 0 ? (
         <nav className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -1,25 +1,40 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import logo from "../assets/logo.svg";
+import {
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
+import Typography from "@/components/custom/Typography";
 
 export default function SidebarHeader() {
-  const navigate = useNavigate();
   return (
-    <div
-      className="h-16 flex items-center gap-2.5 px-5 border-b cursor-pointer flex-shrink-0"
-      onClick={() => navigate("/")}
-    >
-      {/* 系統 LOGO - 固定 h-16 且帶有 border-b */}
-      <div className="h-9 w-9">
-        <img src={logo} />
-      </div>
-      <div>
-        <h1 className="text-base font-bold tracking-tight bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-          E2E Manager
-        </h1>
-        <p className="text-[10px] text-muted-foreground font-mono">
-          STEP-BY-STEP RUNNER
-        </p>
-      </div>
-    </div>
+    <>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" asChild>
+            <Link to="/">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
+                <img src={logo} />
+              </div>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <Typography
+                  type="h1"
+                  className="text-base font-bold bg-clip-text"
+                >
+                  E2E Manager
+                </Typography>
+                <Typography
+                  type="small"
+                  className="text-[10px] text-muted-foreground font-mono"
+                >
+                  STEP-BY-STEP RUNNER
+                </Typography>
+              </div>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </>
   );
 }
