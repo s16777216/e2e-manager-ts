@@ -144,7 +144,7 @@ async function main() {
   await browserManager.initBrowser(headed ? false : undefined);
 
   // 5. 建立與編譯 LangGraph
-  const builder = new E2EGraphBuilder(browserManager);
+  const builder = await E2EGraphBuilder.create(browserManager);
   const graph = builder.buildGraph();
 
   // 6. 初始化初始 State

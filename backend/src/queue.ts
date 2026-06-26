@@ -213,7 +213,7 @@ export class TaskQueue {
         }
       }
 
-      const builder = new E2EGraphBuilder(browserManager);
+      const builder = await E2EGraphBuilder.create(browserManager);
       const graph = builder.buildGraph();
 
       const stepsArray = (fullTestcase.steps || []).map(s => s.action);

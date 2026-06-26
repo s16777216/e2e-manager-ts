@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 import { TestState } from "./state.js";
 import { BrowserManager } from "./browser.js";
@@ -12,6 +11,8 @@ import { TestLog } from "./entities/TestLog.js";
 import { TestRunStep } from "./entities/TestRunStep.js";
 import { buildExecutorSystemPrompt, buildAsserterSystemPrompt, buildStepAsserterSystemPrompt } from "./graph/prompt.js";
 import { routeAfterExecution, routeNextStep, routeAfterStepAssertion } from "./graph/router.js";
+import { getSettings } from "./services/settingsService.js";
+import { getExecutorModel, getAsserterModel } from "./services/llmFactory.js";
 
 // 定義結構化視覺斷言 Zod Schema
 const AssertionResultSchema = z.object({
@@ -22,28 +23,46 @@ const AssertionResultSchema = z.object({
 type AssertionResult = z.infer<typeof AssertionResultSchema>;
 
 export class E2EGraphBuilder {
+  private browserManager: BrowserManager;
   private tools: any[];
   private model: any;
   private asserter_model: any;
 
-  constructor(private browserManager: BrowserManager) {
+  /**
+   * 使用靜態 create() 工廠方法取得實例，以便在建構子外進行非同步設定載入。
+   */
+  private constructor(browserManager: BrowserManager) {
+    this.browserManager = browserManager;
     this.tools = new BrowserTools(browserManager).getTools();
+  }
 
-    // 使用 gemini-3.1-flash-lite 作為逐步執行決策的 Agent，並處理 API 金鑰對應
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    
-    this.model = new ChatGoogleGenerativeAI({
-      model: "gemini-3.1-flash-lite",
-      temperature: 0.0,
-      apiKey: apiKey
-    }).bindTools(this.tools);
-
-    // 使用 gemini-3.1-flash-lite 搭配結構化輸出，作為預期結果的視覺 Asserter
-    this.asserter_model = new ChatGoogleGenerativeAI({
-      model: "gemini-3.1-flash-lite",
-      temperature: 0.0,
-      apiKey: apiKey
-    }).withStructuredOutput(AssertionResultSchema, { includeRaw: true });
+  /**
+   * 靜態工廠方法：從 DB 取得 aiConfig 設定後，動態初始化 Executor 與 Asserter 模型。
+   */
+  static async create(browserManager: BrowserManager): Promise<E2EGraphBuilder> {
+    const instance = new E2EGraphBuilder(browserManager);
+    try {
+      const settings = await getSettings();
+      const aiConfig = settings.aiConfig;
+      instance.model = getExecutorModel(aiConfig, instance.tools);
+      instance.asserter_model = getAsserterModel(aiConfig, AssertionResultSchema);
+    } catch (err) {
+      console.error("[E2EGraphBuilder] 讀取 AI 設定失敗，使用環境變數 fallback：", err);
+      // Fallback：直接使用環境變數的 Gemini 設定
+      const { ChatGoogleGenerativeAI } = await import("@langchain/google-genai");
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+      instance.model = new ChatGoogleGenerativeAI({
+        model: "gemini-2.0-flash",
+        temperature: 0.0,
+        apiKey,
+      }).bindTools(instance.tools);
+      instance.asserter_model = new ChatGoogleGenerativeAI({
+        model: "gemini-2.0-flash",
+        temperature: 0.0,
+        apiKey,
+      }).withStructuredOutput(AssertionResultSchema, { includeRaw: true });
+    }
+    return instance;
   }
 
   /**

@@ -11,9 +11,12 @@
 - **WHEN** 前端發送 `POST /api/settings` 請求並提供包含新 AI 提供者與金鑰的參數值時
 - **THEN** 後端 MUST 將新設定寫入並更新 `settings.json` 檔案中，並返回儲存成功訊息
 
+## ADDED Requirements
+
 ### Requirement: Multi-provider LLM Configuration
 系統核心 MUST 支援 `Google Gemini` 與 `OpenAI Compatible` 兩種模型提供者。在執行測試案例及視覺斷言時，後端 MUST 依據設定值動態呼叫對應模型的 SDK 實例，且不論選用何種提供者，系統皆 MUST 支援 Vision 多模態圖片輸入、Function Calling 瀏覽器工具呼叫，以及完整攔截並回傳 Token 消耗數量。
 
 #### Scenario: Execute test run using OpenAI Compatible model
 - **WHEN** 使用者將供應商設為 `openai`、填妥 Base URL 與金鑰並啟動測試案例執行時
 - **THEN** 後端 LangGraph 自動實例化 `ChatOpenAI` 來執行瀏覽器 Tool 動作，並且順利完成測試步驟，日誌中能正確計算並返回 Token 數據
+

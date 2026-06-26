@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { BaseDialog } from "@/components/custom/BaseDialog";
 import { Loader2, ShieldAlert, Trash2 } from "lucide-react";
 import Typography from "@/components/custom/Typography";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BreadcrumbItem {
   label: string;
@@ -41,14 +48,41 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
+const aiConfigSchema = z.object({
+  provider: z.string().min(1, "請選擇模型提供者"),
+  apiKey: z.string(),
+  geminiModel: z.string().min(1, "請填寫 Executor 模型名稱"),
+  asserterModel: z.string().min(1, "請填寫 Asserter 模型名稱"),
+  openaiApiKey: z.string(),
+  baseUrl: z.string(),
+  openaiModel: z.string(),
+  openaiAsserterModel: z.string(),
+});
+
+type AiConfigFormData = z.infer<typeof aiConfigSchema>;
+
+const DEFAULT_AI_CONFIG: AiConfigFormData = {
+  provider: "",
+  apiKey: "",
+  geminiModel: "",
+  asserterModel: "",
+  openaiApiKey: "",
+  baseUrl: "",
+  openaiModel: "",
+  openaiAsserterModel: "",
+};
+
 export default function SettingsView() {
   const { setBreadcrumbs } = useOutletContext<OutletContextType>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingAi, setSavingAi] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
 
   const [settings, setSettings] = useState<SettingsFormData | null>(null);
+  const [aiConfig, setAiConfig] = useState<AiConfigFormData | null>(null);
+  const [aiConfigProvider, setAiConfigProvider] = useState<string | null>(null);
 
   const fetchSettings = async (showLoading = false) => {
     try {
@@ -65,6 +99,20 @@ export default function SettingsView() {
         viewportWidth: Number(data.viewportWidth),
         viewportHeight: Number(data.viewportHeight),
       });
+      // 載入 aiConfig（若 DB 有值則用，否則用預設值）
+      const ai = data.aiConfig ?? {};
+      setAiConfig({
+        provider: ai.provider ?? DEFAULT_AI_CONFIG.provider,
+        apiKey: ai.apiKey ?? DEFAULT_AI_CONFIG.apiKey,
+        geminiModel: ai.geminiModel ?? DEFAULT_AI_CONFIG.geminiModel,
+        asserterModel: ai.asserterModel ?? DEFAULT_AI_CONFIG.asserterModel,
+        openaiApiKey: ai.openaiApiKey ?? DEFAULT_AI_CONFIG.openaiApiKey,
+        baseUrl: ai.baseUrl ?? DEFAULT_AI_CONFIG.baseUrl,
+        openaiModel: ai.openaiModel ?? DEFAULT_AI_CONFIG.openaiModel,
+        openaiAsserterModel:
+          ai.openaiAsserterModel ?? DEFAULT_AI_CONFIG.openaiAsserterModel,
+      });
+      setAiConfigProvider(ai.provider ?? DEFAULT_AI_CONFIG.provider);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "載入設定失敗");
     } finally {
@@ -100,6 +148,23 @@ export default function SettingsView() {
     }
   };
 
+  const handleSaveAiConfig = async (data: AiConfigFormData) => {
+    setSavingAi(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiConfig: data }),
+      });
+      if (!res.ok) throw new Error("無法儲存 AI 模型配置");
+      toast.success("AI 模型配置已儲存");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "儲存 AI 模型配置失敗");
+    } finally {
+      setSavingAi(false);
+    }
+  };
+
   const handleClearHistory = async () => {
     setClearing(true);
     try {
@@ -114,7 +179,7 @@ export default function SettingsView() {
     }
   };
 
-  if (loading || !settings) {
+  if (loading || !settings || !aiConfig) {
     return (
       <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-400">
         <Loader2 className="animate-spin mr-2" size={20} />
@@ -128,6 +193,7 @@ export default function SettingsView() {
       <h1 className="text-2xl font-bold tracking-tight mb-8">系統全域設定</h1>
 
       <div className="mx-auto w-full space-y-10">
+        {/* 區塊一：瀏覽器與執行參數 */}
         <FormBlock
           label="瀏覽器與執行參數"
           description="設定測試執行時的無頭模式、動作延遲、超時時間，以及瀏覽器的視窗尺寸。"
@@ -192,6 +258,123 @@ export default function SettingsView() {
 
         <Separator className="my-10" />
 
+        {/* 區塊二：AI 模型配置 */}
+        <FormBlock
+          label="AI 模型配置"
+          description="設定 E2E 測試執行引擎所使用的 LLM 供應商、API 金鑰與模型名稱。執行器負責逐步瀏覽器操作決策；斷言器負責視覺截圖判定。"
+          formSchema={aiConfigSchema}
+          defaultValues={aiConfig}
+          onSubmit={handleSaveAiConfig}
+          submitText={savingAi ? "儲存中..." : "儲存設定"}
+        >
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {/* 模型供應商 */}
+            <div className="sm:col-span-2">
+              <FormField
+                name="provider"
+                label="模型供應商"
+                description="選擇 Google Gemini 或 OpenAI Compatible（支援本地 Ollama、LM Studio 等）"
+              >
+                {(field, id) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value: string) => {
+                      field.onChange(value);
+                      setAiConfigProvider(value);
+                    }}
+                  >
+                    <SelectTrigger id={id}>
+                      <SelectValue placeholder="選擇供應商" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google">Google Gemini</SelectItem>
+                      <SelectItem value="openai">OpenAI Compatible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
+            </div>
+
+            {aiConfigProvider === "google" && (
+              <>
+                {/* Google Gemini API Key */}
+                <div className="sm:col-span-2">
+                  <FormField
+                    name="apiKey"
+                    label="Gemini API 金鑰"
+                    description="Google AI Studio 的 API Key，provider=google 時使用"
+                  >
+                    <Input type="password" placeholder="AIzaSy..." />
+                  </FormField>
+                </div>
+
+                {/* Gemini 模型名稱 */}
+                <FormField
+                  name="geminiModel"
+                  label="Gemini Executor 模型"
+                  description="執行器使用的 Gemini 模型名稱"
+                >
+                  <Input placeholder="例如 gemini-2.0-flash" />
+                </FormField>
+
+                <FormField
+                  name="asserterModel"
+                  label="Gemini Asserter 模型"
+                  description="斷言器使用的 Gemini 模型名稱"
+                >
+                  <Input placeholder="例如 gemini-2.0-flash" />
+                </FormField>
+              </>
+            )}
+
+            {aiConfigProvider === "openai" && (
+              <>
+                {/* OpenAI Base URL */}
+                <div className="sm:col-span-2">
+                  <FormField
+                    name="baseUrl"
+                    label="OpenAI Base URL"
+                    description="OpenAI Compatible API 的基礎網址，provider=openai 時使用"
+                  >
+                    <Input placeholder="http://localhost:11434/v1" />
+                  </FormField>
+                </div>
+
+                {/* OpenAI API Key */}
+                <div className="sm:col-span-2">
+                  <FormField
+                    name="openaiApiKey"
+                    label="OpenAI API 金鑰"
+                    description="OpenAI 或相容服務的 API Key（本地 Ollama 可填 ollama）"
+                  >
+                    <Input type="password" placeholder="sk-... 或 ollama" />
+                  </FormField>
+                </div>
+
+                {/* OpenAI 模型名稱 */}
+                <FormField
+                  name="openaiModel"
+                  label="OpenAI 執行器模型"
+                  description="須支援 Vision 與 Tool Calling"
+                >
+                  <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
+                </FormField>
+
+                <FormField
+                  name="openaiAsserterModel"
+                  label="OpenAI 斷言器模型"
+                  description="須支援 Vision 與結構化輸出"
+                >
+                  <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
+                </FormField>
+              </>
+            )}
+          </div>
+        </FormBlock>
+
+        <Separator className="my-10" />
+
+        {/* 危險區域 */}
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
           <div className="flex flex-col space-y-1">
             <h3 className="font-semibold text-lg text-red-400">危險區域</h3>
