@@ -7,6 +7,10 @@ import SidebarContainer from "./SidebarContainer";
 import SidebarItem from "./SidebarItem";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SidebarFooter from "./SidebarFooter";
+import { SettingsIcon } from "@/components/icon/settings";
+import { ClockIcon } from "@/components/icon/clock";
+import { FoldersIcon } from "@/components/icon/folders";
+import { HomeIcon } from "@/components/icon/home";
 
 export interface BreadcrumbItem {
   label: string;
@@ -19,14 +23,17 @@ export default function RootLayout() {
   return (
     <SidebarProvider className="h-svh overflow-hidden">
       <SidebarContainer header={<SidebarHeader />} footer={<SidebarFooter />}>
-        <SidebarItem icon="home" path="/">
+        <SidebarItem iconNode={<HomeIcon size={16} />} path="/">
           首頁
         </SidebarItem>
-        <SidebarItem icon="folder" path="/project">
+        <SidebarItem iconNode={<FoldersIcon size={16} />} path="/project">
           專案管理
         </SidebarItem>
-        <SidebarItem icon="clock" path="/tasks">
+        <SidebarItem iconNode={<ClockIcon size={16} />} path="/tasks">
           執行紀錄
+        </SidebarItem>
+        <SidebarItem iconNode={<SettingsIcon size={16} />} path="/settings">
+          系統設定
         </SidebarItem>
       </SidebarContainer>
 

@@ -15,7 +15,7 @@ import { FormContext } from "./FormContext";
 export interface FormFieldProps {
   name: string;
   label: string;
-  description?: string;
+  description?: string | React.ReactNode;
   children?:
     | React.ReactElement
     | ((

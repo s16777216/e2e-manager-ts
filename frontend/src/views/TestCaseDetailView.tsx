@@ -9,9 +9,6 @@ import {
   Edit,
   Trash2,
   Plus,
-  CheckCircle,
-  XCircle,
-  Clock,
   Loader2,
   AlertTriangle,
   ArrowLeft,
@@ -234,8 +231,6 @@ export default function TestCaseDetailView() {
     }
   };
 
-
-
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-400">
@@ -287,9 +282,7 @@ export default function TestCaseDetailView() {
       ),
       cell: ({ row }) => {
         const status = row.original.status;
-        return (
-          <StatusBadge status={status} />
-        );
+        return <StatusBadge status={status} />;
       },
     },
     {

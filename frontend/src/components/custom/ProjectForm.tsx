@@ -2,19 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Loader2,
-  Trash2,
-  AlertTriangle,
-  ArrowLeft,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react";
+import { Loader2, Trash2, AlertTriangle, ArrowLeft } from "lucide-react";
 import { BaseDialog } from "./BaseDialog";
 import type { CookiesData, LocalStorageData } from "@/types/api";
 import { Separator } from "../ui/separator";
 import Typography from "./Typography";
-import { ScrollArea } from "../ui/scroll-area";
+import { FormBlock, FormField } from "./form";
+import z from "zod";
+import { Card, CardContent } from "../ui/card";
+import { toast } from "sonner";
 
 interface ProjectFormProps {
   initialData?: {
@@ -96,54 +92,12 @@ export function ProjectForm({
   submitLabel,
   isSubmitting,
   onSubmit,
-  onCancel,
   onDelete,
 }: ProjectFormProps) {
-  const [name, setName] = useState(initialData?.name || "");
-  const [description, setDescription] = useState(
-    initialData?.description || "",
-  );
-
-  // JSON 編輯器字串狀態
-  const [cookiesStr, setCookiesStr] = useState(
-    initialData?.initCookies
-      ? JSON.stringify(initialData.initCookies, null, 2)
-      : "",
-  );
-  const [localStorageStr, setLocalStorageStr] = useState(
-    initialData?.initLocalStorage
-      ? JSON.stringify(initialData.initLocalStorage, null, 2)
-      : "",
-  );
-
   // 刪除相關狀態
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // 即時 JSON 格式驗證
-  const {
-    parsed: parsedCookies,
-    isValid: isCookiesValid,
-    error: cookiesError,
-  } = validateCookies(cookiesStr);
-  const {
-    parsed: parsedLocalStorage,
-    isValid: isLocalStorageValid,
-    error: localStorageError,
-  } = validateLocalStorage(localStorageStr);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !isCookiesValid || !isLocalStorageValid || isSubmitting)
-      return;
-    await onSubmit(
-      name.trim(),
-      description.trim(),
-      parsedCookies,
-      parsedLocalStorage,
-    );
-  };
 
   const handleDelete = async () => {
     if (!onDelete || confirmName !== initialData?.name || isDeleting) return;
@@ -191,173 +145,217 @@ export function ProjectForm({
     </div>
   );
 
+  const baseSettingSchema = z.object({
+    name: z.string().min(1, "專案名稱為必填"),
+    description: z.string().optional(),
+  });
+
+  type BaseSettingFormData = z.infer<typeof baseSettingSchema>;
+
+  const [baseSettings, setBaseSettings] = useState<BaseSettingFormData>({
+    name: initialData?.name || "",
+    description: initialData?.description || "",
+  });
+
+  const cookiesSettingSchema = z.object({
+    initCookies: z
+      .custom<string>(
+        (val) => {
+          const { parsed, isValid, error } = validateCookies(val);
+          if (!isValid) {
+            throw new Error(error || "Cookies 格式錯誤");
+          }
+          return parsed;
+        },
+        {
+          message:
+            'Cookies 必須為 JSON 物件格式 (例如: { "domain/path": { "name": "value" } })',
+        },
+      )
+      .optional(),
+    initLocalStorage: z
+      .custom<string>(
+        (val) => {
+          const { parsed, isValid, error } = validateLocalStorage(val);
+          if (!isValid) {
+            throw new Error(error || "LocalStorage 格式錯誤");
+          }
+          return parsed;
+        },
+        {
+          message:
+            'LocalStorage 必須為 JSON 物件格式 (例如: { "key": "value" })',
+        },
+      )
+      .optional(),
+  });
+  type CookiesSettingFormData = z.infer<typeof cookiesSettingSchema>;
+
+  const [cookiesSettings, setCookiesSettings] =
+    useState<CookiesSettingFormData>({
+      initCookies: initialData?.initCookies
+        ? JSON.stringify(initialData.initCookies, null, 2)
+        : "",
+      initLocalStorage: initialData?.initLocalStorage
+        ? JSON.stringify(initialData.initLocalStorage, null, 2)
+        : "",
+    });
+
+  const handleBaseSettingsSave = async (data: BaseSettingFormData) => {
+    setBaseSettings(data);
+    try {
+      const parsedCookies: CookiesData = cookiesSettings?.initCookies
+        ? JSON.parse(cookiesSettings.initCookies)
+        : {};
+      const parsedLocalStorage: LocalStorageData =
+        cookiesSettings?.initLocalStorage
+          ? JSON.parse(cookiesSettings.initLocalStorage)
+          : {};
+      await onSubmit(
+        data.name,
+        data.description || "",
+        parsedCookies,
+        parsedLocalStorage,
+      );
+      toast.success("設定已儲存");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
+      toast.error(msg);
+    }
+  };
+
+  const handleCookiesSettingsSave = async (data: CookiesSettingFormData) => {
+    setCookiesSettings(data);
+    try {
+      const parsedCookies: CookiesData = data.initCookies
+        ? JSON.parse(data.initCookies)
+        : {};
+      const parsedLocalStorage: LocalStorageData = data.initLocalStorage
+        ? JSON.parse(data.initLocalStorage)
+        : {};
+
+      await onSubmit(
+        baseSettings.name,
+        baseSettings.description || "",
+        parsedCookies,
+        parsedLocalStorage,
+      );
+      toast.success("設定已儲存");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
+      toast.error(msg);
+    }
+  };
+
   return (
     <>
-      <ScrollArea>
-        <form
-          id="project-form"
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-6 max-w-xl w-full mx-auto my-4 p-6"
+      <div className="mx-auto w-full space-y-10">
+        <FormBlock
+          label="基本資訊"
+          description="設定專案的基本資訊。"
+          formSchema={baseSettingSchema}
+          defaultValues={baseSettings}
+          onSubmit={handleBaseSettingsSave}
+          submitText={isSubmitting ? "儲存中..." : submitLabel}
+          submitIcon="save"
         >
-          <div className="flex flex-col gap-6 max-w-xl w-full">
-            <Typography type="h2">基本資訊</Typography>
-            {/* 專案名稱 */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                專案名稱 <span className="text-rose-500">*</span>
-              </label>
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-zinc-100"
-                placeholder="請輸入專案名稱"
-                required
-              />
-            </div>
+          <FormField
+            name="name"
+            label="專案名稱"
+            description="設定專案的基本資訊。"
+          >
+            <Input placeholder="請輸入專案名稱" />
+          </FormField>
 
-            {/* 專案描述 */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                專案描述
-              </label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="bg-zinc-950 border-zinc-800 text-zinc-100 resize-none"
-                placeholder="請輸入專案描述"
-                rows={3}
-              />
-            </div>
-          </div>
-          <Separator />
-
-          {/* 初始 Cookies - 平鋪展開 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                Cookies
-              </label>
-              {cookiesStr.trim() !== "" &&
-                (cookiesError ? (
-                  <span className="text-[9px] text-rose-400 flex items-center gap-0.5 font-medium">
-                    <AlertCircle size={10} /> 格式錯誤
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-emerald-400 flex items-center gap-0.5 font-medium">
-                    <CheckCircle2 size={10} /> 格式正確
-                  </span>
-                ))}
-            </div>
-            <Textarea
-              value={cookiesStr}
-              onChange={(e) => setCookiesStr(e.target.value)}
-              placeholder={`{\n  "localhost/": {\n    "token": "jwt-token-here"\n  }\n}`}
-              className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y placeholder:text-zinc-700 no-scrollbar ${
-                cookiesError
-                  ? "border-rose-900/50 focus-visible:ring-rose-500"
-                  : "border-zinc-850"
-              }`}
-            />
-            {cookiesError ? (
-              <span className="text-[10px] text-rose-400 leading-tight mt-0.5">
-                {cookiesError}
-              </span>
-            ) : (
+          <FormField
+            name="description"
+            label="專案描述"
+            description="設定專案的描述。"
+          >
+            <Textarea placeholder="請輸入專案描述" />
+          </FormField>
+        </FormBlock>
+        <Separator className="my-10" />
+        <FormBlock
+          label="Cookies 與 LocalStorage"
+          description="設定專案的 Cookies 與 LocalStorage，將在每次執行測試時自動注入。"
+          formSchema={cookiesSettingSchema}
+          defaultValues={cookiesSettings}
+          onSubmit={handleCookiesSettingsSave}
+          submitText={isSubmitting ? "儲存中..." : submitLabel}
+          submitIcon="save"
+        >
+          <FormField
+            name="initCookies"
+            label="Cookies"
+            description={
               <Typography type="muted" className="text-[10px] leading-tight">
                 格式為 JSON 物件，例如 {'`{"domain/path": {"key": "value"}}`'}
               </Typography>
-            )}
-          </div>
-
-          {/* 初始 LocalStorage - 平鋪展開 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                LocalStorage
-              </label>
-              {localStorageStr.trim() !== "" &&
-                (localStorageError ? (
-                  <span className="text-[9px] text-rose-400 flex items-center gap-0.5 font-medium">
-                    <AlertCircle size={10} /> 格式錯誤
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-emerald-400 flex items-center gap-0.5 font-medium">
-                    <CheckCircle2 size={10} /> 格式正確
-                  </span>
-                ))}
-            </div>
+            }
+          >
             <Textarea
-              value={localStorageStr}
-              onChange={(e) => setLocalStorageStr(e.target.value)}
-              placeholder={`{\n  "theme": "dark",\n  "version": "1.0"\n}`}
-              className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y placeholder:text-zinc-700 no-scrollbar ${
-                localStorageError
-                  ? "border-rose-900/50 focus-visible:ring-rose-500"
-                  : "border-zinc-850"
-              }`}
+              placeholder={`{\n  "localhost/": {\n    "token": "jwt-token-here"\n  }\n}`}
+              className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y placeholder:text-zinc-700 no-scrollbar`}
             />
-            {localStorageError ? (
-              <span className="text-[10px] text-rose-400 leading-tight mt-0.5">
-                {localStorageError}
-              </span>
-            ) : (
+          </FormField>
+          <FormField
+            name="initLocalStorage"
+            label="LocalStorage"
+            description={
               <Typography type="muted" className="text-[10px] leading-tight">
                 格式為 JSON 物件，例如 {'`{"key": "value"}`'}
               </Typography>
-            )}
-          </div>
+            }
+          >
+            <Textarea
+              placeholder={`{\n  "theme": "dark",\n  "version": "1.0"\n}`}
+              className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y placeholder:text-zinc-700 no-scrollbar`}
+            />
+          </FormField>
+        </FormBlock>
+        {/* 危險區域 */}
+        {/* 刪除專案入口 (僅在編輯模式且提供 onDelete 時展示) */}
+        {onDelete && initialData && (
+          <>
+            <Separator className="my-10" />
 
-          {/* 刪除專案入口 (僅在編輯模式且提供 onDelete 時展示) */}
-          {onDelete && initialData && (
-            <div className="border-t border-zinc-900/60 pt-5 mt-2 flex flex-col gap-2">
-              <label className="text-[10px] font-bold text-rose-500/80 uppercase tracking-wider">
-                危險區域
-              </label>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 flex items-center gap-1.5 self-start"
-              >
-                <Trash2 size={14} />
-                刪除專案
-              </Button>
+            <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
+              <div className="flex flex-col space-y-1">
+                <h3 className="font-semibold text-lg text-red-400">危險區域</h3>
+                <p className="text-muted-foreground text-sm">
+                  此處的操作具備破壞性且不可逆，請謹慎執行。
+                </p>
+              </div>
+
+              <div className="space-y-6 lg:col-span-2">
+                <Card className="border-red-900/30 bg-red-950/10">
+                  <CardContent>
+                    <div className="flex justify-between gap-4 max-lg:flex-col lg:items-center">
+                      <div className="space-y-1">
+                        <Typography type="h6" className="text-red-400">
+                          刪除專案
+                        </Typography>
+                        <Typography type="p" className="text-zinc-400">
+                          刪除專案將永久刪除該專案下的所有群組、測試案例及歷史執行紀錄。
+                        </Typography>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        className="bg-red-950/40 border border-red-800/60 hover:bg-red-900 hover:text-white cursor-pointer"
+                      >
+                        <Trash2 size={16} className="mr-2" />
+                        刪除專案
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          )}
-        </form>
-      </ScrollArea>
-      {/* 送出與取消按鈕 */}
-      <div className="flex justify-end gap-3 border-t border-zinc-900 pt-5 mt-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"
-          disabled={isSubmitting}
-        >
-          取消
-        </Button>
-        <Button
-          type="submit"
-          form="project-form"
-          disabled={
-            isSubmitting ||
-            !name.trim() ||
-            !isCookiesValid ||
-            !isLocalStorageValid
-          }
-          className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold flex items-center gap-1.5"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              處理中...
-            </>
-          ) : (
-            submitLabel
-          )}
-        </Button>
+          </>
+        )}
       </div>
       {/* 刪除專案二次確認彈窗 */}
       {onDelete && initialData && (

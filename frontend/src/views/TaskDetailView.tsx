@@ -6,7 +6,6 @@ import type { Task } from "../types/api";
 import { Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "../components/custom/StatusBadge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
@@ -165,7 +164,7 @@ export default function TaskDetailView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-hidden select-none animate-fadeIn">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground select-none animate-fadeIn">
       {/* 頂部 Header */}
       <div className="px-8 py-6 flex items-center justify-between flex-shrink-0 border-b border-zinc-900/45 bg-zinc-950">
         <div>
@@ -193,7 +192,7 @@ export default function TaskDetailView() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 bg-zinc-950/40">
+      <div className="flex-1 bg-zinc-950/40">
         <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
           {/* Bento Panel: 進度條與狀態 */}
           <div className="bg-zinc-900/30 backdrop-blur-md border border-zinc-850 rounded-2xl p-6 shadow-xl flex flex-col gap-4">
@@ -302,7 +301,7 @@ export default function TaskDetailView() {
             )}
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

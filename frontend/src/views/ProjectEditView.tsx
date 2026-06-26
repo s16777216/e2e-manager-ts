@@ -103,7 +103,7 @@ export default function ProjectEditView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground select-none p-8">
       <ProjectForm
         key={activeProject.id}
         initialData={initialFormVal}
