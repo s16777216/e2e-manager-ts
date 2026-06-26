@@ -12,7 +12,7 @@ import {
 import { FormContext } from "./FormContext";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 
-export interface FormBlockProps<T extends z.ZodObject<z.ZodRawShape>> {
+export interface FormBlockProps<T extends z.ZodTypeAny> {
   label: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
@@ -23,7 +23,7 @@ export interface FormBlockProps<T extends z.ZodObject<z.ZodRawShape>> {
   submitIcon?: IconName;
 }
 
-const FormBlock = <T extends z.ZodObject<z.ZodRawShape>>(
+const FormBlock = <T extends z.ZodTypeAny>(
   props: FormBlockProps<T>,
 ) => {
   const {

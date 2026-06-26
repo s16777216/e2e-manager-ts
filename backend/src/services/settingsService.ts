@@ -4,6 +4,8 @@ import { SystemSetting } from "../entities/SystemSetting.js";
 /** aiConfig 的完整型別（應用層使用，包含預設值後保證所有欄位存在） */
 export interface AiConfig {
   provider: string;
+  executorProvider: string;
+  asserterProvider: string;
   apiKey: string;
   baseUrl: string;
   openaiApiKey: string;
@@ -16,6 +18,8 @@ export interface AiConfig {
 /** aiConfig 的應用層預設值（provider=google，使用環境變數的 API Key） */
 const DEFAULT_AI_CONFIG: AiConfig = {
   provider: "google",
+  executorProvider: "google",
+  asserterProvider: "google",
   apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "",
   baseUrl: "http://localhost:11434/v1",
   openaiApiKey: "",
@@ -39,9 +43,13 @@ export async function getSettings(): Promise<SystemSetting & { aiConfig: AiConfi
   }
 
   // 在應用層補填 aiConfig 預設值，確保呼叫方永遠取得完整結構
+  const dbAiConfig = setting.aiConfig ?? {};
+  const providerFallback = dbAiConfig.provider ?? DEFAULT_AI_CONFIG.provider;
   const aiConfig: AiConfig = {
     ...DEFAULT_AI_CONFIG,
-    ...(setting.aiConfig ?? {}),
+    ...dbAiConfig,
+    executorProvider: dbAiConfig.executorProvider ?? providerFallback,
+    asserterProvider: dbAiConfig.asserterProvider ?? providerFallback,
   };
 
   return { ...setting, aiConfig };

@@ -48,28 +48,93 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 
-const aiConfigSchema = z.object({
-  provider: z.string().min(1, "請選擇模型提供者"),
-  apiKey: z.string(),
-  geminiModel: z.string().min(1, "請填寫 Executor 模型名稱"),
-  asserterModel: z.string().min(1, "請填寫 Asserter 模型名稱"),
-  openaiApiKey: z.string(),
-  baseUrl: z.string(),
-  openaiModel: z.string(),
-  openaiAsserterModel: z.string(),
-});
+const aiConfigSchema = z
+  .object({
+    executorProvider: z.string().min(1, "請選擇執行器模型提供者"),
+    asserterProvider: z.string().min(1, "請選擇斷言器模型提供者"),
+    apiKey: z.string().optional(),
+    geminiModel: z.string().optional(),
+    asserterModel: z.string().optional(),
+    openaiApiKey: z.string().optional(),
+    baseUrl: z.string().optional(),
+    openaiModel: z.string().optional(),
+    openaiAsserterModel: z.string().optional(),
+  })
+  .superRefine((val, ctx) => {
+    // 1. Google 供應商啟用時，金鑰與模型名稱必填
+    const hasGoogle = val.executorProvider === "google" || val.asserterProvider === "google";
+    if (hasGoogle && (!val.apiKey || val.apiKey.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "啟用 Gemini 供應商時，Gemini API 金鑰為必填",
+        path: ["apiKey"],
+      });
+    }
+
+    if (val.executorProvider === "google" && (!val.geminiModel || val.geminiModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "執行器選用 Gemini 時，Gemini Executor 模型名稱為必填",
+        path: ["geminiModel"],
+      });
+    }
+
+    if (val.asserterProvider === "google" && (!val.asserterModel || val.asserterModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "斷言器選用 Gemini 時，Gemini Asserter 模型名稱為必填",
+        path: ["asserterModel"],
+      });
+    }
+
+    // 2. OpenAI 供應商啟用時，金鑰、Base URL 與模型名稱必填
+    const hasOpenAi = val.executorProvider === "openai" || val.asserterProvider === "openai";
+    if (hasOpenAi) {
+      if (!val.baseUrl || val.baseUrl.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "啟用 OpenAI 供應商時，OpenAI Base URL 為必填",
+          path: ["baseUrl"],
+        });
+      }
+      if (!val.openaiApiKey || val.openaiApiKey.trim() === "") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "啟用 OpenAI 供應商時，OpenAI API 金鑰為必填",
+          path: ["openaiApiKey"],
+        });
+      }
+    }
+
+    if (val.executorProvider === "openai" && (!val.openaiModel || val.openaiModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "執行器選用 OpenAI 時，OpenAI 執行器模型名稱為必填",
+        path: ["openaiModel"],
+      });
+    }
+
+    if (val.asserterProvider === "openai" && (!val.openaiAsserterModel || val.openaiAsserterModel.trim() === "")) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "斷言器選用 OpenAI 時，OpenAI 斷言器模型名稱為必填",
+        path: ["openaiAsserterModel"],
+      });
+    }
+  });
 
 type AiConfigFormData = z.infer<typeof aiConfigSchema>;
 
 const DEFAULT_AI_CONFIG: AiConfigFormData = {
-  provider: "",
+  executorProvider: "google",
+  asserterProvider: "google",
   apiKey: "",
-  geminiModel: "",
-  asserterModel: "",
+  geminiModel: "gemini-2.0-flash",
+  asserterModel: "gemini-2.0-flash",
   openaiApiKey: "",
-  baseUrl: "",
-  openaiModel: "",
-  openaiAsserterModel: "",
+  baseUrl: "http://localhost:11434/v1",
+  openaiModel: "gpt-4o",
+  openaiAsserterModel: "gpt-4o",
 };
 
 export default function SettingsView() {
@@ -82,7 +147,8 @@ export default function SettingsView() {
 
   const [settings, setSettings] = useState<SettingsFormData | null>(null);
   const [aiConfig, setAiConfig] = useState<AiConfigFormData | null>(null);
-  const [aiConfigProvider, setAiConfigProvider] = useState<string | null>(null);
+  const [executorProvider, setExecutorProvider] = useState<string>("google");
+  const [asserterProvider, setAsserterProvider] = useState<string>("google");
 
   const fetchSettings = async (showLoading = false) => {
     try {
@@ -101,8 +167,11 @@ export default function SettingsView() {
       });
       // 載入 aiConfig（若 DB 有值則用，否則用預設值）
       const ai = data.aiConfig ?? {};
+      const execP = ai.executorProvider ?? ai.provider ?? "google";
+      const asseP = ai.asserterProvider ?? ai.provider ?? "google";
       setAiConfig({
-        provider: ai.provider ?? DEFAULT_AI_CONFIG.provider,
+        executorProvider: execP,
+        asserterProvider: asseP,
         apiKey: ai.apiKey ?? DEFAULT_AI_CONFIG.apiKey,
         geminiModel: ai.geminiModel ?? DEFAULT_AI_CONFIG.geminiModel,
         asserterModel: ai.asserterModel ?? DEFAULT_AI_CONFIG.asserterModel,
@@ -112,7 +181,8 @@ export default function SettingsView() {
         openaiAsserterModel:
           ai.openaiAsserterModel ?? DEFAULT_AI_CONFIG.openaiAsserterModel,
       });
-      setAiConfigProvider(ai.provider ?? DEFAULT_AI_CONFIG.provider);
+      setExecutorProvider(execP);
+      setAsserterProvider(asseP);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "載入設定失敗");
     } finally {
@@ -267,106 +337,152 @@ export default function SettingsView() {
           onSubmit={handleSaveAiConfig}
           submitText={savingAi ? "儲存中..." : "儲存設定"}
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            {/* 模型供應商 */}
-            <div className="sm:col-span-2">
-              <FormField
-                name="provider"
-                label="模型供應商"
-                description="選擇 Google Gemini 或 OpenAI Compatible（支援本地 Ollama、LM Studio 等）"
-              >
-                {(field, id) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(value: string) => {
-                      field.onChange(value);
-                      setAiConfigProvider(value);
-                    }}
+          <div className="space-y-8">
+            {/* 執行器配置區 */}
+            <div className="space-y-4">
+              <Typography type="h6" className="text-zinc-300 font-medium">執行器配置 (Executor)</Typography>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <FormField
+                  name="executorProvider"
+                  label="執行器供應商"
+                  description="決定執行器模型所使用的 AI 供應商"
+                >
+                  {(field, id) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value: string) => {
+                        field.onChange(value);
+                        setExecutorProvider(value);
+                      }}
+                    >
+                      <SelectTrigger id={id}>
+                        <SelectValue placeholder="選擇供應商" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google">Google Gemini</SelectItem>
+                        <SelectItem value="openai">OpenAI Compatible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </FormField>
+
+                {executorProvider === "google" ? (
+                  <FormField
+                    name="geminiModel"
+                    label="Gemini Executor 模型"
+                    description="執行器使用的 Gemini 模型名稱"
                   >
-                    <SelectTrigger id={id}>
-                      <SelectValue placeholder="選擇供應商" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google">Google Gemini</SelectItem>
-                      <SelectItem value="openai">OpenAI Compatible</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <Input placeholder="例如 gemini-2.0-flash" />
+                  </FormField>
+                ) : (
+                  <FormField
+                    name="openaiModel"
+                    label="OpenAI 執行器模型"
+                    description="須支援 Vision 與 Tool Calling"
+                  >
+                    <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
+                  </FormField>
                 )}
-              </FormField>
+              </div>
             </div>
 
-            {aiConfigProvider === "google" && (
+            <Separator className="bg-zinc-800" />
+
+            {/* 斷言器配置區 */}
+            <div className="space-y-4">
+              <Typography type="h6" className="text-zinc-300 font-medium">斷言器配置 (Asserter)</Typography>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <FormField
+                  name="asserterProvider"
+                  label="斷言器供應商"
+                  description="決定視覺斷言器模型所使用的 AI 供應商"
+                >
+                  {(field, id) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value: string) => {
+                        field.onChange(value);
+                        setAsserterProvider(value);
+                      }}
+                    >
+                      <SelectTrigger id={id}>
+                        <SelectValue placeholder="選擇供應商" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google">Google Gemini</SelectItem>
+                        <SelectItem value="openai">OpenAI Compatible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </FormField>
+
+                {asserterProvider === "google" ? (
+                  <FormField
+                    name="asserterModel"
+                    label="Gemini Asserter 模型"
+                    description="斷言器使用的 Gemini 模型名稱"
+                  >
+                    <Input placeholder="例如 gemini-2.0-flash" />
+                  </FormField>
+                ) : (
+                  <FormField
+                    name="openaiAsserterModel"
+                    label="OpenAI 斷言器模型"
+                    description="須支援 Vision 與結構化輸出"
+                  >
+                    <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
+                  </FormField>
+                )}
+              </div>
+            </div>
+
+            {/* API 連線憑證區 */}
+            {(executorProvider === "google" ||
+              asserterProvider === "google" ||
+              executorProvider === "openai" ||
+              asserterProvider === "openai") && (
               <>
-                {/* Google Gemini API Key */}
-                <div className="sm:col-span-2">
-                  <FormField
-                    name="apiKey"
-                    label="Gemini API 金鑰"
-                    description="Google AI Studio 的 API Key，provider=google 時使用"
-                  >
-                    <Input type="password" placeholder="AIzaSy..." />
-                  </FormField>
+                <Separator className="bg-zinc-800" />
+                <div className="space-y-4">
+                  <Typography type="h6" className="text-zinc-300 font-medium">API 連線憑證配置</Typography>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    {(executorProvider === "google" || asserterProvider === "google") && (
+                      <div className="sm:col-span-2">
+                        <FormField
+                          name="apiKey"
+                          label="Gemini API 金鑰"
+                          description="Google AI Studio 的 API Key"
+                        >
+                          <Input type="password" placeholder="AIzaSy..." />
+                        </FormField>
+                      </div>
+                    )}
+
+                    {(executorProvider === "openai" || asserterProvider === "openai") && (
+                      <>
+                        <div className="sm:col-span-2">
+                          <FormField
+                            name="baseUrl"
+                            label="OpenAI Base URL"
+                            description="OpenAI Compatible API 的基礎網址"
+                          >
+                            <Input placeholder="http://localhost:11434/v1" />
+                          </FormField>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <FormField
+                            name="openaiApiKey"
+                            label="OpenAI API 金鑰"
+                            description="OpenAI 或相容服務的 API Key（本地 Ollama 可填 ollama）"
+                          >
+                            <Input type="password" placeholder="sk-... 或 ollama" />
+                          </FormField>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-
-                {/* Gemini 模型名稱 */}
-                <FormField
-                  name="geminiModel"
-                  label="Gemini Executor 模型"
-                  description="執行器使用的 Gemini 模型名稱"
-                >
-                  <Input placeholder="例如 gemini-2.0-flash" />
-                </FormField>
-
-                <FormField
-                  name="asserterModel"
-                  label="Gemini Asserter 模型"
-                  description="斷言器使用的 Gemini 模型名稱"
-                >
-                  <Input placeholder="例如 gemini-2.0-flash" />
-                </FormField>
-              </>
-            )}
-
-            {aiConfigProvider === "openai" && (
-              <>
-                {/* OpenAI Base URL */}
-                <div className="sm:col-span-2">
-                  <FormField
-                    name="baseUrl"
-                    label="OpenAI Base URL"
-                    description="OpenAI Compatible API 的基礎網址，provider=openai 時使用"
-                  >
-                    <Input placeholder="http://localhost:11434/v1" />
-                  </FormField>
-                </div>
-
-                {/* OpenAI API Key */}
-                <div className="sm:col-span-2">
-                  <FormField
-                    name="openaiApiKey"
-                    label="OpenAI API 金鑰"
-                    description="OpenAI 或相容服務的 API Key（本地 Ollama 可填 ollama）"
-                  >
-                    <Input type="password" placeholder="sk-... 或 ollama" />
-                  </FormField>
-                </div>
-
-                {/* OpenAI 模型名稱 */}
-                <FormField
-                  name="openaiModel"
-                  label="OpenAI 執行器模型"
-                  description="須支援 Vision 與 Tool Calling"
-                >
-                  <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
-                </FormField>
-
-                <FormField
-                  name="openaiAsserterModel"
-                  label="OpenAI 斷言器模型"
-                  description="須支援 Vision 與結構化輸出"
-                >
-                  <Input placeholder="例如 gpt-4o 或 llama3.2-vision" />
-                </FormField>
               </>
             )}
           </div>
