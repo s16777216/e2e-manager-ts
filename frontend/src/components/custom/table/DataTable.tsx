@@ -85,7 +85,7 @@ export function DataTable<TData, TValue>({
       {(showSearch || topbarContent) && (
         <div className="flex items-center py-4 justify-between w-full">
           {showSearch ? (
-            <div className="relative w-80">
+            <div className="relative w-120">
               <SearchIcon
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
@@ -133,7 +133,7 @@ export function DataTable<TData, TValue>({
                   onDoubleClick={() => onRowDbClick?.(row.original)}
                   onClick={() => onRowClick?.(row.original)}
                   className={
-                    onRowClick
+                    onRowClick || onRowDbClick
                       ? "cursor-pointer hover:bg-zinc-900/20 transition-colors"
                       : ""
                   }

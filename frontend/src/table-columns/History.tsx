@@ -2,12 +2,15 @@ import type { Task } from "@/types/api";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "../components/custom/table/ColumnHeader";
 import { StatusBadge } from "../components/custom/StatusBadge";
+import SelectFilter from "@/components/custom/table/SelectFilter";
 
 export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "id",
+    enableSorting: false,
+    enableColumnFilter: false,
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="任務編號" />
+      <DataTableColumnHeader column={column} title="編號" />
     ),
     cell: ({ row }) => (
       <span className="font-mono text-zinc-200">
@@ -29,7 +32,22 @@ export const columns: ColumnDef<Task>[] = [
   {
     accessorKey: "scope",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="執行範圍" />
+      <DataTableColumnHeader
+        column={column}
+        title="執行範圍"
+        customFilter={(context) => {
+          return (
+            <SelectFilter
+              context={context}
+              items={[
+                { label: "全專案", value: "project" },
+                { label: "測試群組", value: "group" },
+                { label: "單一案例", value: "testcase" },
+              ]}
+            />
+          );
+        }}
+      />
     ),
     cell: ({ row }) => {
       const scopeMap = {
@@ -46,6 +64,7 @@ export const columns: ColumnDef<Task>[] = [
   },
   {
     accessorKey: "totalCount",
+    filterFn: "inNumberRange",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="案例總數" />
     ),
@@ -55,6 +74,7 @@ export const columns: ColumnDef<Task>[] = [
   },
   {
     accessorKey: "doneCount",
+    filterFn: "inNumberRange",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="已完成" />
     ),
@@ -85,6 +105,7 @@ export const columns: ColumnDef<Task>[] = [
         className="flex justify-center"
       />
     ),
+    filterFn: "inNumberRange",
     cell: ({ row }) => {
       const tokens = row.original.totalTokens;
       return (
@@ -101,6 +122,18 @@ export const columns: ColumnDef<Task>[] = [
         column={column}
         title="結果"
         className="flex justify-center"
+        customFilter={(context) => (
+          <SelectFilter
+            context={context}
+            items={[
+              { label: "未開始", value: "pending" },
+              { label: "進行中", value: "running" },
+              { label: "成功", value: "passed" },
+              { label: "失敗", value: "failed" },
+              { label: "錯誤", value: "error" },
+            ]}
+          />
+        )}
       />
     ),
     cell: ({ row }) => {

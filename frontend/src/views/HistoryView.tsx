@@ -1,15 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { api } from "../lib/api";
-import type { Task, Project } from "../types/api";
-import { Clock, Loader2, Filter } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type { Task } from "../types/api";
+import { Clock, Loader2 } from "lucide-react";
+
 import { toast } from "sonner";
 import { DataTable } from "../components/custom/table/DataTable";
 import { columns } from "../table-columns/History";
@@ -28,12 +22,9 @@ export default function HistoryView() {
   const { setBreadcrumbs } = useOutletContext<OutletContextType>();
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // 篩選狀態
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   // 設定麵包屑
   useEffect(() => {
@@ -51,12 +42,8 @@ export default function HistoryView() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [tasksData, projectsData] = await Promise.all([
-          api.getAllTasks(),
-          api.getProjects(),
-        ]);
+        const [tasksData] = await Promise.all([api.getAllTasks()]);
         setTasks(tasksData);
-        setProjects(projectsData);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         toast.error("載入歷史紀錄失敗：" + msg);
@@ -78,19 +65,6 @@ export default function HistoryView() {
     );
   }
 
-  // 前端過濾
-  const filteredTasks = tasks.filter((t) => {
-    const matchProject =
-      selectedProjectId === "all" || t.projectId === selectedProjectId;
-
-    let matchStatus = true;
-    if (selectedStatus !== "all") {
-      matchStatus = t.status === selectedStatus;
-    }
-
-    return matchProject && matchStatus;
-  });
-
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-foreground select-none p-8 animate-fadeIn">
       {/* 頂部 Header */}
@@ -106,56 +80,11 @@ export default function HistoryView() {
         </div>
       </div>
 
-      {/* 篩選控制項 */}
-      <div className="w-full mx-auto flex flex-wrap items-center gap-4 mb-6 bg-zinc-900/10 border border-zinc-850/40 p-4 rounded-xl backdrop-blur-sm">
-        <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider">
-          <Filter size={12} />
-          <span>篩選條件</span>
-        </div>
-
-        {/* 專案篩選 */}
-        <div className="w-56">
-          <Select
-            value={selectedProjectId}
-            onValueChange={setSelectedProjectId}
-          >
-            <SelectTrigger className="bg-zinc-950 border-zinc-850 text-zinc-300 h-9 text-xs">
-              <SelectValue placeholder="所有專案" />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-850 text-zinc-300">
-              <SelectItem value="all">所有專案</SelectItem>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* 狀態篩選 */}
-        <div className="w-44">
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="bg-zinc-950 border-zinc-850 text-zinc-300 h-9 text-xs">
-              <SelectValue placeholder="所有狀態" />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-850 text-zinc-300">
-              <SelectItem value="all">所有狀態</SelectItem>
-              <SelectItem value="passed">成功 (passed)</SelectItem>
-              <SelectItem value="failed">失敗 (failed)</SelectItem>
-              <SelectItem value="error">異常 (error)</SelectItem>
-              <SelectItem value="running">執行中 (running)</SelectItem>
-              <SelectItem value="pending">排隊中 (pending)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* 歷史任務表格 */}
       <div className="w-full mx-auto flex-1 flex flex-col">
         <DataTable
           columns={columns}
-          data={filteredTasks}
+          data={tasks}
           onRowDbClick={(row) =>
             navigate(`/project/${row.projectId || "unknown"}/tasks/${row.id}`)
           }
