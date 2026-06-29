@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useLoaderData } from "react-router-dom";
+import { useParams, useNavigate, useLoaderData, useRouteLoaderData } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Testcase, TestRun, Project } from "../types/api";
 import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion";
@@ -29,8 +29,9 @@ export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams();
   const navigate = useNavigate();
 
-  const loaderData = useLoaderData() as { project: Project | null; testcase: Testcase | null } | null;
-  const activeProject = loaderData?.project;
+  const activeProject = useRouteLoaderData("project-root") as Project | null;
+  const testcaseData = useLoaderData() as Testcase | null;
+  const loaderData = { project: activeProject, testcase: testcaseData };
 
   // 測試案例狀態，初始值使用 loader 載入的 testcase
   const [testcase, setTestcase] = useState<Testcase | null>(loaderData?.testcase ?? null);

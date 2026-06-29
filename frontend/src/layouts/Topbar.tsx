@@ -14,10 +14,26 @@ export default function Topbar() {
   // 從匹配的路由中派生宣告式麵包屑
   const breadcrumbs = matches
     .filter((m) => isRouteHandle(m.handle))
-    .flatMap((m) => {
+    .map((m) => {
       const handle = m.handle as RouteHandle;
-      return handle.crumb(m.loaderData, m.params);
-    });
+      const label = typeof handle.label === "function"
+        ? handle.label(m.loaderData, m.params)
+        : handle.label;
+
+      if (!label) return null;
+
+      const to = typeof handle.to === "function"
+        ? handle.to(m.params)
+        : handle.to ?? m.pathname;
+
+      return {
+        label,
+        to,
+        icon: handle.icon,
+        iconNode: handle.iconNode,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

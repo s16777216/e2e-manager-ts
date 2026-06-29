@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useLoaderData } from "react-router-dom";
+import { useParams, useNavigate, useLoaderData, useRouteLoaderData } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Task, Project } from "../types/api";
 import { Loader2, ChevronRight } from "lucide-react";
@@ -12,8 +12,9 @@ export default function TaskDetailView() {
   const { projectId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const loaderData = useLoaderData() as { project: Project | null; task: Task | null } | null;
-  const activeProject = loaderData?.project;
+  const activeProject = useRouteLoaderData("project-root") as Project | null;
+  const taskData = useLoaderData() as Task | null;
+  const loaderData = { project: activeProject, task: taskData };
 
   const [task, setTask] = useState<Task | null>(loaderData?.task ?? null);
   const [isLoading, setIsLoading] = useState(!loaderData?.task);

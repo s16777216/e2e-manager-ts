@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useLoaderData } from "react-router-dom";
+import { useParams, useRouteLoaderData } from "react-router-dom";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSSEStream } from "../hooks/useSSEStream";
@@ -36,7 +36,7 @@ export default function SSEConsoleView() {
     };
   }, [runStatus?.testcaseId]);
 
-  const foundProject = useLoaderData() as Project | null;
+  const foundProject = useRouteLoaderData("project-root") as Project | null;
 
   // 滾動至最新步驟
   useEffect(() => {

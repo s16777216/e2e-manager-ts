@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useParams, useNavigate, useLoaderData } from "react-router-dom"
+import { useParams, useNavigate, useRouteLoaderData } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
@@ -23,8 +23,8 @@ export default function ProjectDetailView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
 
-  // 專案資訊 (改用 useLoaderData)
-  const activeProject = useLoaderData() as Project | null
+  // 專案資訊 (改用 useRouteLoaderData)
+  const activeProject = useRouteLoaderData("project-root") as Project | null
 
   // 觸發專案全部執行
   const handleRunAllProject = async () => {

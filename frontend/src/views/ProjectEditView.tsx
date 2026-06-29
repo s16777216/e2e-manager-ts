@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams, useLoaderData } from "react-router-dom";
+import { useNavigate, useParams, useRouteLoaderData } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
 import type { CookiesData, LocalStorageData, Project } from "@/types/api";
@@ -7,7 +7,7 @@ import type { CookiesData, LocalStorageData, Project } from "@/types/api";
 export default function ProjectEditView() {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const activeProject = useLoaderData() as Project | null;
+  const activeProject = useRouteLoaderData("project-root") as Project | null;
   const { handleUpdateProject, handleDeleteProject } = useProjectData();
   const [isSaving, setIsSaving] = useState(false);
 

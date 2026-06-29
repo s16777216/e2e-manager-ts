@@ -13,14 +13,18 @@ export interface RouteHandle<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends (...args: any[]) => any = (...args: any[]) => any,
 > {
-  crumb: (data: Awaited<ReturnType<T>>, params: Params<string>) => Crumb[];
+  label?:
+    | string
+    | ((data: Awaited<ReturnType<T>>, params: Params<string>) => string);
+  icon?: IconName;
+  iconNode?: ReactNode;
+  to?: string | ((params: Params<string>) => string);
 }
 
 export function isRouteHandle(handle: unknown): handle is RouteHandle {
   return (
     typeof handle === "object" &&
     handle !== null &&
-    "crumb" in handle &&
-    typeof handle.crumb === "function"
+    ("label" in handle || "icon" in handle || "iconNode" in handle)
   );
 }
