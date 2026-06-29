@@ -1,35 +1,12 @@
-import { useEffect } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { Button } from "@/components/ui/button";
 import { columns } from "../table-columns/Project";
 import { DataTable } from "../components/custom/table/DataTable";
 import { PlusIcon } from "@/components/icon/plus";
 
-interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItem[]) => void;
-}
-
 export default function ProjectsView() {
   const navigate = useNavigate();
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
-
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      setBreadcrumbs([{ label: "專案管理" }]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [setBreadcrumbs]);
-
   const { projects } = useProjectData();
 
   return (

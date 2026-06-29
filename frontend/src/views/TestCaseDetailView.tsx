@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useOutletContext } from "react-router-dom";
-import { useProjectData } from "../hooks/useProjectData";
+import { useParams, useNavigate, useLoaderData } from "react-router-dom";
 import { api } from "../lib/api";
-import type { Testcase, TestRun } from "../types/api";
+import type { Testcase, TestRun, Project } from "../types/api";
 import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion";
 import {
   Play,
@@ -26,55 +25,35 @@ import { BaseDialog } from "../components/custom/BaseDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-interface BreadcrumbItemType {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void;
-}
-
 export default function TestCaseDetailView() {
   const { projectId, testCaseId } = useParams();
   const navigate = useNavigate();
 
-  // 測試案例狀態
-  const [testcase, setTestcase] = useState<Testcase | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const loaderData = useLoaderData() as { project: Project | null; testcase: Testcase | null } | null;
+  const activeProject = loaderData?.project;
 
-  // 專案與全域麵包屑
-  const { projects } = useProjectData();
-  const activeProject = projects.find((p) => p.id === projectId);
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
+  // 測試案例狀態，初始值使用 loader 載入的 testcase
+  const [testcase, setTestcase] = useState<Testcase | null>(loaderData?.testcase ?? null);
+  const [isLoading, setIsLoading] = useState(!loaderData?.testcase);
 
-  useEffect(() => {
-    const projectName = activeProject ? activeProject.name : "載入中...";
-    const tcNameText = testcase ? testcase.name : "載入中...";
-    Promise.resolve().then(() => {
-      setBreadcrumbs([
-        { label: "專案列表", to: "/project" },
-        { label: projectName, to: `/project/${projectId}` },
-        { label: tcNameText },
-      ]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [projectId, activeProject, testcase, setBreadcrumbs]);
-
-  // 編輯模式狀態
+  // 編輯模式狀態，初始值使用 loader 載入的 testcase
   const [isEditing, setIsEditing] = useState(false);
-  const [tcName, setTcName] = useState("");
+  const [tcName, setTcName] = useState(loaderData?.testcase?.name ?? "");
   const [tcSteps, setTcSteps] = useState<
     Array<{ action: string; expected?: string; hasExpected?: boolean }>
-  >([{ action: "", expected: "", hasExpected: false }]);
-  const [tcExpected, setTcExpected] = useState("");
+  >(
+    loaderData?.testcase?.steps && loaderData.testcase.steps.length > 0
+      ? loaderData.testcase.steps.map((s) => ({
+          action: s.action,
+          expected: s.expected,
+          hasExpected: s.hasExpected,
+        }))
+      : [{ action: "", expected: "", hasExpected: false }],
+  );
+  const [tcExpected, setTcExpected] = useState(loaderData?.testcase?.expected ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [initCookies, setInitCookies] = useState<unknown>(null);
-  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(null);
+  const [initCookies, setInitCookies] = useState<unknown>(loaderData?.testcase?.initCookies ?? null);
+  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(loaderData?.testcase?.initLocalStorage ?? null);
   const [isJsonValid, setIsJsonValid] = useState(true);
 
   // 執行測試狀態
@@ -110,10 +89,25 @@ export default function TestCaseDetailView() {
     setPrevTestCaseId(testCaseId);
     setIsEditing(false);
     setActiveTab("steps");
-    setIsLoading(true);
+    setIsLoading(!loaderData?.testcase);
+    const newTc = loaderData?.testcase ?? null;
+    setTestcase(newTc);
+    setTcName(newTc?.name ?? "");
+    setTcSteps(
+      newTc?.steps && newTc.steps.length > 0
+        ? newTc.steps.map((s) => ({
+            action: s.action,
+            expected: s.expected,
+            hasExpected: s.hasExpected,
+          }))
+        : [{ action: "", expected: "", hasExpected: false }],
+    );
+    setTcExpected(newTc?.expected ?? "");
+    setInitCookies(newTc?.initCookies ?? null);
+    setInitLocalStorage(newTc?.initLocalStorage ?? null);
   }
 
-  // 載入測試案例詳情與執行紀錄
+  // 載入測試案例詳情與執行紀錄 (只在編輯保存後重載)
   const loadTestCaseData = useCallback(async () => {
     if (!testCaseId) return;
     try {
@@ -140,18 +134,6 @@ export default function TestCaseDetailView() {
       setIsLoading(false);
     }
   }, [testCaseId]);
-
-  useEffect(() => {
-    let active = true;
-    Promise.resolve().then(() => {
-      if (active) {
-        loadTestCaseData();
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [loadTestCaseData]);
 
   // 步驟表單增減
   const handleAddStepInput = () => {

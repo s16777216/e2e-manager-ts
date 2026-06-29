@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -19,15 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItem[]) => void;
-}
 
 const settingsSchema = z.object({
   headless: z.boolean(),
@@ -138,7 +128,6 @@ const DEFAULT_AI_CONFIG: AiConfigFormData = {
 };
 
 export default function SettingsView() {
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingAi, setSavingAi] = useState(false);
@@ -191,15 +180,13 @@ export default function SettingsView() {
   };
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "系統設定" }]);
     const timer = setTimeout(() => {
       fetchSettings();
     }, 0);
     return () => {
       clearTimeout(timer);
-      setBreadcrumbs([]);
     };
-  }, [setBreadcrumbs]);
+  }, []);
 
   const handleSave = async (data: SettingsFormData) => {
     setSaving(true);

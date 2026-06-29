@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useParams, useOutletContext, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLoaderData } from "react-router-dom"
 import { useProjectData } from "../hooks/useProjectData"
 import { useGroupData } from "../hooks/useGroupData"
 import { GroupTreeNode, type FlatTreeRow } from "../components/custom/GroupTreeNode"
@@ -17,30 +17,14 @@ import { toast } from "sonner"
 import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion"
 import { BaseDialog } from "../components/custom/BaseDialog"
 
-import type { TestGroup, Testcase } from "../types/api"
-
-interface BreadcrumbItemType {
-  label: string
-  to?: string
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void
-}
+import type { TestGroup, Testcase, Project } from "../types/api"
 
 export default function ProjectDetailView() {
   const { projectId } = useParams()
   const navigate = useNavigate()
 
-  // 專案資訊
-  const { projects } = useProjectData()
-  const activeProject = projects.find((p) => p.id === projectId)
-
-
-
-
-
-
+  // 專案資訊 (改用 useLoaderData)
+  const activeProject = useLoaderData() as Project | null
 
   // 觸發專案全部執行
   const handleRunAllProject = async () => {
@@ -68,31 +52,6 @@ export default function ProjectDetailView() {
       toast.error("啟動群組測試失敗：" + msg)
     }
   }
-
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>()
-
-  useEffect(() => {
-    if (activeProject) {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([
-          { label: "專案列表", to: "/project" },
-          { label: activeProject.name }
-        ])
-      })
-    } else {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([
-          { label: "專案列表", to: "/project" },
-          { label: "載入中..." }
-        ])
-      })
-    }
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([])
-      })
-    }
-  }, [activeProject, setBreadcrumbs])
 
   // 群組樹狀態
   const {

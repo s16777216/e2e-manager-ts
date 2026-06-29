@@ -1,37 +1,13 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
 import type { CookiesData, LocalStorageData } from "@/types/api";
 
-interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItem[]) => void;
-}
-
 export default function ProjectCreateView() {
   const navigate = useNavigate();
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
   const { handleCreateProject } = useProjectData();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      setBreadcrumbs([
-        { label: "專案管理", to: "/project" },
-        { label: "建立新專案" },
-      ]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [setBreadcrumbs]);
 
   const handleSubmit = async (
     name: string,

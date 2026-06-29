@@ -1,22 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useOutletContext } from "react-router-dom";
+import { useParams, useLoaderData } from "react-router-dom";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSSEStream } from "../hooks/useSSEStream";
-import { useProjectData } from "../hooks/useProjectData";
-import type { Testcase } from "../types/api";
+import type { Testcase, Project } from "../types/api";
 import { api } from "../lib/api";
 import { StepAccordion } from "../components/custom/StepAccordion";
 import { cn } from "../lib/utils";
-
-interface BreadcrumbItemType {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void;
-}
 
 export default function SSEConsoleView() {
   const { projectId, runId } = useParams();
@@ -46,40 +36,7 @@ export default function SSEConsoleView() {
     };
   }, [runStatus?.testcaseId]);
 
-  const { projects } = useProjectData();
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
-
-  const foundProject = projects.find((p) => p.id === projectId);
-
-  useEffect(() => {
-    const projectName = foundProject ? foundProject.name : "載入中...";
-    const tcName = testcase ? testcase.name : "載入中...";
-    Promise.resolve().then(() => {
-      setBreadcrumbs([
-        { label: "專案列表", to: "/project" },
-        { label: projectName, to: `/project/${projectId}` },
-        {
-          label: tcName,
-          to: runStatus?.testcaseId
-            ? `/project/${projectId}/testCase/${runStatus.testcaseId}`
-            : undefined,
-        },
-        { label: `執行紀錄 #${runId?.substring(0, 8)}` },
-      ]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [
-    projectId,
-    runId,
-    foundProject,
-    testcase,
-    runStatus?.testcaseId,
-    setBreadcrumbs,
-  ]);
+  const foundProject = useLoaderData() as Project | null;
 
   // 滾動至最新步驟
   useEffect(() => {

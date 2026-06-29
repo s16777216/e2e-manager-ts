@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Task } from "../types/api";
 import { Clock, Loader2 } from "lucide-react";
@@ -8,35 +8,13 @@ import { toast } from "sonner";
 import { DataTable } from "../components/custom/table/DataTable";
 import { columns } from "../table-columns/History";
 
-interface BreadcrumbItemType {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void;
-}
-
 export default function HistoryView() {
   const navigate = useNavigate();
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // 篩選狀態
-
-  // 設定麵包屑
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      setBreadcrumbs([{ label: "執行紀錄" }]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [setBreadcrumbs]);
 
   // 載入資料
   useEffect(() => {

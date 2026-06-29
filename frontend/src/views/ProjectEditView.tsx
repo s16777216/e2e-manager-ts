@@ -1,46 +1,15 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams, useOutletContext } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useParams, useLoaderData } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
-import { Loader2 } from "lucide-react";
-import type { CookiesData, LocalStorageData } from "@/types/api";
-
-interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItem[]) => void;
-}
+import type { CookiesData, LocalStorageData, Project } from "@/types/api";
 
 export default function ProjectEditView() {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
-  const { projects, handleUpdateProject, handleDeleteProject, isLoading } =
-    useProjectData();
+  const activeProject = useLoaderData() as Project | null;
+  const { handleUpdateProject, handleDeleteProject } = useProjectData();
   const [isSaving, setIsSaving] = useState(false);
-
-  const activeProject = projects.find((p) => p.id === projectId);
-
-  useEffect(() => {
-    if (activeProject) {
-      setBreadcrumbs([
-        { label: "專案管理", to: "/project" },
-        { label: activeProject.name, to: `/project/${activeProject.id}` },
-        { label: "編輯專案" },
-      ]);
-    } else {
-      setBreadcrumbs([
-        { label: "專案管理", to: "/project" },
-        { label: "載入中..." },
-      ]);
-    }
-    return () => {
-      setBreadcrumbs([]);
-    };
-  }, [activeProject, setBreadcrumbs]);
 
   const handleSubmit = async (
     name: string,
@@ -71,15 +40,6 @@ export default function ProjectEditView() {
       navigate("/project");
     }
   };
-
-  if (isLoading && !activeProject) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-400">
-        <Loader2 className="animate-spin mr-2" size={20} />
-        載入專案資料中...
-      </div>
-    );
-  }
 
   if (!activeProject) {
     return (

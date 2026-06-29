@@ -1,20 +1,23 @@
 import { Separator } from "@/components/ui/separator";
 import { ChevronRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useMatches } from "react-router-dom";
 import CustomSidebarTrigger from "./CustomSidebarTrigger";
+import { isRouteHandle } from "@/types/breadcrumb";
+import type { RouteHandle } from "@/types/breadcrumb";
+import { DynamicIcon } from "lucide-react/dynamic";
+import React from "react";
 
-export interface BreadcrumbItem {
-  label: string;
-  to?: string;
-}
-
-interface TopbarProps {
-  breadcrumbs: BreadcrumbItem[];
-}
-
-export default function Topbar(props: TopbarProps) {
-  const { breadcrumbs } = props;
+export default function Topbar() {
   const navigate = useNavigate();
+  const matches = useMatches();
+
+  // 從匹配的路由中派生宣告式麵包屑
+  const breadcrumbs = matches
+    .filter((m) => isRouteHandle(m.handle))
+    .flatMap((m) => {
+      const handle = m.handle as RouteHandle;
+      return handle.crumb(m.loaderData, m.params);
+    });
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -36,17 +39,35 @@ export default function Topbar(props: TopbarProps) {
                 {item.to && !isLast ? (
                   <button
                     onClick={() => navigate(item.to!)}
-                    className="hover:text-foreground font-medium transition-colors"
+                    className="hover:text-foreground font-medium transition-colors flex items-center gap-1.5"
                   >
-                    {item.label}
+                    {React.isValidElement(item.iconNode) ? (
+                      <>{item.iconNode}</>
+                    ) : item.icon ? (
+                      <DynamicIcon
+                        size={14}
+                        name={item.icon}
+                        className={isLast ? "text-zinc-400" : "text-zinc-500"}
+                      />
+                    ) : null}
+                    <span>{item.label}</span>
                   </button>
                 ) : (
                   <span
-                    className={
+                    className={`flex items-center gap-1.5 ${
                       isLast ? "text-foreground font-semibold" : "font-medium"
-                    }
+                    }`}
                   >
-                    {item.label}
+                    {React.isValidElement(item.iconNode) ? (
+                      <>{item.iconNode}</>
+                    ) : item.icon ? (
+                      <DynamicIcon
+                        size={14}
+                        name={item.icon}
+                        className={isLast ? "text-zinc-400" : "text-zinc-500"}
+                      />
+                    ) : null}
+                    <span>{item.label}</span>
                   </span>
                 )}
               </div>

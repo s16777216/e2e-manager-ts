@@ -1,53 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useOutletContext } from "react-router-dom";
-import { useProjectData } from "../hooks/useProjectData";
+import { useParams, useNavigate, useLoaderData } from "react-router-dom";
 import { api } from "../lib/api";
-import type { Task } from "../types/api";
+import type { Task, Project } from "../types/api";
 import { Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "../components/custom/StatusBadge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
-interface BreadcrumbItemType {
-  label: string;
-  to?: string;
-}
-
-interface OutletContextType {
-  setBreadcrumbs: (crumbs: BreadcrumbItemType[]) => void;
-}
-
 export default function TaskDetailView() {
   const { projectId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const [task, setTask] = useState<Task | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const loaderData = useLoaderData() as { project: Project | null; task: Task | null } | null;
+  const activeProject = loaderData?.project;
 
-  // 專案與全域麵包屑
-  const { projects } = useProjectData();
-  const activeProject = projects.find((p) => p.id === projectId);
-  const { setBreadcrumbs } = useOutletContext<OutletContextType>();
+  const [task, setTask] = useState<Task | null>(loaderData?.task ?? null);
+  const [isLoading, setIsLoading] = useState(!loaderData?.task);
 
-  useEffect(() => {
-    const projectName = activeProject ? activeProject.name : "載入中...";
-    const taskShortId = taskId ? `#${taskId.substring(0, 8)}` : "載入中...";
-    Promise.resolve().then(() => {
-      setBreadcrumbs([
-        { label: "專案列表", to: "/project" },
-        { label: projectName, to: `/project/${projectId}` },
-        { label: `批次任務 ${taskShortId}` },
-      ]);
-    });
-    return () => {
-      Promise.resolve().then(() => {
-        setBreadcrumbs([]);
-      });
-    };
-  }, [projectId, activeProject, taskId, setBreadcrumbs]);
-
-  // 載入 Task 詳情
+  // 載入 Task 詳情 (只在 SSE 更新或需要手動重載時使用)
   const loadTaskData = useCallback(async () => {
     if (!taskId) return;
     try {
@@ -60,12 +31,6 @@ export default function TaskDetailView() {
       setIsLoading(false);
     }
   }, [taskId]);
-
-  useEffect(() => {
-    Promise.resolve().then(() => {
-      loadTaskData();
-    });
-  }, [loadTaskData]);
 
   const taskStatus = task?.status;
 
