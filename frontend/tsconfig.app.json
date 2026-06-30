@@ -18,7 +18,8 @@
     /* Path mapping */
     "paths": {
       "@/*": ["./src/*"],
-      "src/*": ["./src/*"]
+      "src/*": ["./src/*"],
+      "lucide-react": ["./src/lib/lucide-proxy.tsx"]
     },
 
     /* Linting */

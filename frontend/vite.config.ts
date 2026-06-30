@@ -10,10 +10,20 @@ const __dirname = path.dirname(__filename)
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      'src': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      {
+        find: /^lucide-react$/,
+        replacement: path.resolve(__dirname, './src/lib/lucide-proxy.tsx')
+      },
+      {
+        find: '@',
+        replacement: path.resolve(__dirname, './src')
+      },
+      {
+        find: 'src',
+        replacement: path.resolve(__dirname, './src')
+      }
+    ],
   },
   server: {
     port: 5173,
