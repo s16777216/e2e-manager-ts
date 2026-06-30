@@ -86,3 +86,10 @@ TBD - created by archiving change setup-monorepo-and-frontend. Update Purpose af
 - **WHEN** 使用者點擊側邊欄底部的設定圖示按鈕時
 - **THEN** 前端應用程式將畫面轉導至 `/settings` 路由，並在主工作區渲染設定設定面板，頂部全域麵包屑展示為「系統設定」
 
+### Requirement: Variable Configuration UI Form
+前端介面 MUST 在專案編輯、群組編輯、與測試案例對話框中，提供「環境變數設定」摺疊面板。面板內 MUST 提供可動態新增與刪除的鍵值對（Key-Value pairs）輸入表格，並在儲存前校驗變數名稱不可包含特殊字元或空白。
+
+#### Scenario: Configure variables for project or testcase
+- **WHEN** 使用者在建立或編輯測試案例時，在「環境變數設定」面板中新增鍵值對 `key: "baseUrl"`、`value: "http://prod.com"` 並儲存時
+- **THEN** 前端將該變數序列化為 JSONB 發送給 API 儲存，並可在步驟、環境設定或預期結果中以 `{{baseUrl}}` 來進行引用
+

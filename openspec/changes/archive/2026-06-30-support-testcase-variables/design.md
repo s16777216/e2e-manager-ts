@@ -5,11 +5,11 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- 在 PostgreSQL 的 `project`、`test_group`、`testcase` 資料表中新增 `variables` (jsonb) 欄位（TypeScript 型別為 `Record<string, string>`，預設為空物件 `{}`）。
-- 於後端實作變數遞迴合併演算法：`Project ──▶ Parent Group ──▶ Child Group ──▶ Testcase`。子層同名變數覆蓋父層。
+- 在 PostgreSQL 的 `project`、`test_group`、`testcase` 資料表中新增/升級 `variables` (jsonb) 欄位（TypeScript 型別為 `Record<string, { value: string; description?: string }>`，並實作向後相容相容性支援）。
+- 於後端實作變數遞迴合併與相容相容性處理演算法：`Project ──▶ Parent Group ──▶ Child Group ──▶ Testcase`。子層同名變數覆蓋父層。
 - 於後端實作字串插值解析演算法，支援以 `{{variableName}}` 預留位置進行正則表達式全局替換。
 - 在 E2E 執行引擎 [queue.ts](file:///c:/works/e2e-manager-ts/backend/src/queue.ts) 中，於測試啟動前，對 Testcase 的 `steps` 陣列、`expected`、`initCookies`、`initLocalStorage` 內容同步進行插值替換。
-- 於前端提供簡易的 `variables` 鍵值對編輯表格，整合於專案、群組與測試案例的編輯對話框中。
+- 於前端重構變數編輯 UI，將原本的摺疊多個輸入框列表改為全展開的 Shadcn Item 項目清單 + Dialog 新增與編輯對話框（支援 Key、Value 與 Description 欄位）。
 
 **Non-Goals:**
 - 不支援變數的動態計算或執行期修改，僅實作啟動時的靜態插值替換。
@@ -24,12 +24,13 @@
   * 對 Playwright 而言，注入的 Cookie / LocalStorage 已經是具體的 Session Token，不會因為變數格式錯誤而導致瀏覽器初始化報錯。
   * 歷史紀錄中依然會存有原本帶有 `{{variableName}}` 的模板設定，方便維護。
 
-### 2. 前端鍵值對編輯 UI 設計
-- **決策**：在 Dialog 中新增「變數設定」摺疊面板。內部提供一個動態表單：
-  * 每列包含「變數名稱 (Key)」與「變數值 (Value)」兩個輸入框。
-  * 提供「新增變數」與「刪除」按鈕。
-  * 儲存時，前端將其轉換為 JSON 物件 `{ "key": "value" }` 發送給 API。
-- **考量**：比起讓使用者直接手動編寫 JSON，這種鍵值對輸入介面更不容易出錯，且對一般使用者更友善。
+### 2. 前端變數編輯 UI 重構與描述欄位設計
+- **決策**：在對應表單中嵌入全展開的「環境變數 (Variables)」編輯區塊。
+  * 清單項目以 Shadcn Item 列出，顯示 `Key = Value` 並在下方顯示 `💡 Description` 描述。
+  * 提供「編輯 (Edit)」與「刪除 (Delete)」的圖示按鈕。
+  * 點擊「新增變數」或「編輯」時彈出 Shadcn `Dialog` 編輯框，包含「變數名稱 (Key)」、「變數值 (Value)」與「變數描述 (Description)」三個輸入框。
+  * 儲存時，前端將其轉換為變數對應表發送給 API。
+- **考量**：清單折疊取消且改為 Dialog 彈窗編輯後，介面更加整潔清爽，新增描述欄位能幫助協同開發者清楚理解每個環境變數的用途。
 
 ## Risks / Trade-offs
 

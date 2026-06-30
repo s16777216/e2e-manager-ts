@@ -22,7 +22,7 @@ testcaseRouter.get("/groups/:groupId/testcases", async (c) => {
 
 testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
-  const { name, steps, expected, initCookies, initLocalStorage } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage, variables } = await c.req.json();
 
   if (
     !name ||
@@ -48,6 +48,7 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   testcase.group = group;
   testcase.initCookies = initCookies;
   testcase.initLocalStorage = initLocalStorage;
+  testcase.variables = variables;
 
   // 轉換成 TestcaseStep 實體
   testcase.steps = steps.map((s: any, idx: number) => {
@@ -80,7 +81,7 @@ testcaseRouter.get("/testcases/:id", async (c) => {
 
 testcaseRouter.patch("/testcases/:id", async (c) => {
   const id = c.req.param("id");
-  const { name, steps, expected, initCookies, initLocalStorage } = await c.req.json();
+  const { name, steps, expected, initCookies, initLocalStorage, variables } = await c.req.json();
 
   const testcaseRepo = AppDataSource.getRepository(Testcase);
   const testcase = await testcaseRepo.findOne({ where: { id }, relations: { steps: true } });
@@ -111,6 +112,7 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
       if (expected) testcase.expected = expected;
       if (initCookies !== undefined) testcase.initCookies = initCookies;
       if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
+      if (variables !== undefined) testcase.variables = variables;
       testcase.steps = stepsEntities;
 
       await transactionalEntityManager.save(testcase);
@@ -120,6 +122,7 @@ testcaseRouter.patch("/testcases/:id", async (c) => {
     if (expected) testcase.expected = expected;
     if (initCookies !== undefined) testcase.initCookies = initCookies;
     if (initLocalStorage !== undefined) testcase.initLocalStorage = initLocalStorage;
+    if (variables !== undefined) testcase.variables = variables;
     await testcaseRepo.save(testcase);
   }
 

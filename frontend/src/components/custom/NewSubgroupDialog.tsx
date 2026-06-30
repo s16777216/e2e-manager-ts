@@ -2,16 +2,17 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { JsonEditorAccordion } from "./JsonEditorAccordion"
-import type { TestGroup } from "@/types/api"
+import type { TestGroup, VariableItem } from "@/types/api"
 import { BaseDialog } from "./BaseDialog"
+import { VariablesEditor } from "./VariablesEditor"
 
 interface NewSubgroupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   parentId: string | null
   groupToEdit?: TestGroup | null
-  onCreateGroup: (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown) => Promise<unknown>
-  onUpdateGroup?: (name: string, initCookies?: unknown, initLocalStorage?: unknown) => Promise<unknown>
+  onCreateGroup: (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown, variables?: Record<string, VariableItem>) => Promise<unknown>
+  onUpdateGroup?: (name: string, initCookies?: unknown, initLocalStorage?: unknown, variables?: Record<string, VariableItem>) => Promise<unknown>
 }
 
 export function NewSubgroupDialog({
@@ -26,6 +27,7 @@ export function NewSubgroupDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [initCookies, setInitCookies] = useState<unknown>(groupToEdit ? groupToEdit.initCookies : null)
   const [initLocalStorage, setInitLocalStorage] = useState<unknown>(groupToEdit ? groupToEdit.initLocalStorage : null)
+  const [variables, setVariables] = useState<Record<string, VariableItem>>(groupToEdit?.variables || {})
   const [isJsonValid, setIsJsonValid] = useState(true)
 
   const handleSubmit = async () => {
@@ -34,10 +36,10 @@ export function NewSubgroupDialog({
     try {
       if (groupToEdit) {
         if (onUpdateGroup) {
-          await onUpdateGroup(name.trim(), initCookies, initLocalStorage)
+          await onUpdateGroup(name.trim(), initCookies, initLocalStorage, variables)
         }
       } else {
-        await onCreateGroup(name.trim(), parentId, initCookies, initLocalStorage)
+        await onCreateGroup(name.trim(), parentId, initCookies, initLocalStorage, variables)
       }
       onOpenChange(false)
     } finally {
@@ -99,6 +101,11 @@ export function NewSubgroupDialog({
             setInitLocalStorage(localStorage)
             setIsJsonValid(isValid)
           }}
+        />
+
+        <VariablesEditor
+          variables={variables}
+          onChange={setVariables}
         />
       </div>
     </BaseDialog>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
-import type { CookiesData, LocalStorageData } from "@/types/api";
+import type { CookiesData, LocalStorageData, VariableItem } from "@/types/api";
 
 export default function ProjectCreateView() {
   const navigate = useNavigate();
@@ -14,17 +14,16 @@ export default function ProjectCreateView() {
     description: string,
     initCookies: CookiesData | null,
     initLocalStorage: LocalStorageData | null,
+    variables?: Record<string, VariableItem>,
   ) => {
     setIsSubmitting(true);
     try {
-      // 這裡需要修改 handleCreateProject 的實作以支援這四個參數，或者呼叫 API 建立後再更新。
-      // 等等，讓我們確認 handleCreateProject 原本的定義是否只有 name，或者 handleCreateProject 本身就支持多個參數？
-      // 我們來確認一下 useProjectData.ts 中的 handleCreateProject 定義。
       const p = await handleCreateProject(
         name,
         description,
         initCookies,
         initLocalStorage,
+        variables,
       );
       if (p) {
         navigate(`/project/${p.id}`);

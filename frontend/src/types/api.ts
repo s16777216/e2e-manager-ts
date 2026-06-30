@@ -1,6 +1,11 @@
 export type CookiesData = Record<string, Record<string, unknown>>;
 export type LocalStorageData = Record<string, unknown>;
 
+export interface VariableItem {
+  value: string;
+  description?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -9,6 +14,7 @@ export interface Project {
   groups?: TestGroup[];
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
+  variables?: Record<string, VariableItem> | null;
 }
 
 export interface TestGroup {
@@ -20,6 +26,7 @@ export interface TestGroup {
   testcases?: Testcase[];
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
+  variables?: Record<string, VariableItem> | null;
 }
 
 export interface TestcaseStep {
@@ -40,6 +47,7 @@ export interface Testcase {
   runs?: TestRun[];
   initCookies?: CookiesData | null;
   initLocalStorage?: LocalStorageData | null;
+  variables?: Record<string, VariableItem> | null;
 }
 
 export interface TestRun {

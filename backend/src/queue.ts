@@ -7,7 +7,7 @@ import { Task } from "./entities/Task.js";
 import { Project } from "./entities/Project.js";
 import { TestGroup } from "./entities/TestGroup.js";
 import { Testcase } from "./entities/Testcase.js";
-import { mergeCookies, mergeLocalStorage } from "./services/environmentService.js";
+import { mergeCookies, mergeLocalStorage, mergeVariables, interpolateString, interpolateObject, VariableItem } from "./services/environmentService.js";
 
 export class TaskQueue {
   private static instance: TaskQueue | null = null;
@@ -162,6 +162,36 @@ export class TaskQueue {
     mergedCookies = mergeCookies(mergedCookies, fullTestcase.initCookies);
     mergedLocalStorage = mergeLocalStorage(mergedLocalStorage, fullTestcase.initLocalStorage);
 
+    // 合併環境變數
+    let mergedVariables: Record<string, VariableItem> = {};
+    if (project && project.variables) {
+      mergedVariables = mergeVariables(mergedVariables, project.variables);
+    }
+    for (const group of groupsChain) {
+      if (group.variables) {
+        mergedVariables = mergeVariables(mergedVariables, group.variables);
+      }
+    }
+    if (fullTestcase.variables) {
+      mergedVariables = mergeVariables(mergedVariables, fullTestcase.variables);
+    }
+
+    // 將合併後的環境變數解析成扁平的 Record<string, string> 以進行插值
+    const flatVariables: Record<string, string> = {};
+    for (const [key, item] of Object.entries(mergedVariables)) {
+      flatVariables[key] = item ? item.value : "";
+    }
+
+    const undefinedVars: string[] = [];
+    const onUndefined = (varName: string) => {
+      if (!undefinedVars.includes(varName)) {
+        undefinedVars.push(varName);
+      }
+    };
+
+    mergedCookies = interpolateObject(mergedCookies, flatVariables, onUndefined);
+    mergedLocalStorage = interpolateObject(mergedLocalStorage, flatVariables, onUndefined);
+
     const browserManager = new BrowserManager();
 
     try {
@@ -216,8 +246,24 @@ export class TaskQueue {
       const builder = await E2EGraphBuilder.create(browserManager);
       const graph = builder.buildGraph();
 
-      const stepsArray = (fullTestcase.steps || []).map(s => s.action);
-      const expectedsArray = (fullTestcase.steps || []).map(s => s.expected || "");
+      const stepsArray = (fullTestcase.steps || []).map(s => interpolateString(s.action, flatVariables, onUndefined));
+      const expectedsArray = (fullTestcase.steps || []).map(s => interpolateString(s.expected || "", flatVariables, onUndefined));
+      const interpolatedExpected = interpolateString(testcase.expected, flatVariables, onUndefined);
+
+      if (undefinedVars.length > 0) {
+        console.warn(`[Worker] 偵測到未定義的環境變數：${undefinedVars.join(", ")}`);
+      }
+
+      const initialLogs = undefinedVars.map(varName => ({
+        step_idx: 0,
+        step_description: "變數解析校驗",
+        action: "warning",
+        result: `環境變數引用 "{{${varName}}}" 未定義，已保留原始佔位符。`,
+        timestamp: new Date().toISOString(),
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      }));
 
       const initial_state = {
         run_id: run.id,
@@ -225,12 +271,12 @@ export class TaskQueue {
         test_name: testcase.name,
         steps: stepsArray,
         step_expecteds: expectedsArray,
-        expected: testcase.expected,
+        expected: interpolatedExpected,
         current_step_idx: 0,
         step_retry_count: 0,
         reports_dir: "",
         screenshots_paths: [],
-        logs: [],
+        logs: initialLogs,
         final_result: "",
         final_reason: "",
       };

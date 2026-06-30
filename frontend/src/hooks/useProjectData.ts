@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { api } from "../lib/api"
-import type { Project } from "../types/api"
+import type { Project, VariableItem } from "../types/api"
 import { toast } from "sonner"
 
 export function useProjectData() {
@@ -30,6 +30,7 @@ export function useProjectData() {
     description?: string,
     initCookies?: unknown,
     initLocalStorage?: unknown,
+    variables?: Record<string, VariableItem>,
   ) => {
     if (!name.trim()) return null;
     try {
@@ -38,6 +39,7 @@ export function useProjectData() {
         description?.trim(),
         initCookies,
         initLocalStorage,
+        variables,
       );
       setProjects((prev) => [...prev, newProj]);
       toast.success("專案建立成功！");
@@ -54,7 +56,8 @@ export function useProjectData() {
     name: string,
     description?: string,
     initCookies?: unknown,
-    initLocalStorage?: unknown
+    initLocalStorage?: unknown,
+    variables?: Record<string, VariableItem>,
   ) => {
     if (!name.trim()) return null
     try {
@@ -63,7 +66,8 @@ export function useProjectData() {
         name.trim(),
         description?.trim(),
         initCookies,
-        initLocalStorage
+        initLocalStorage,
+        variables,
       )
       setProjects((prev) => prev.map((p) => p.id === projectId ? updatedProj : p))
       toast.success("專案更新成功！")

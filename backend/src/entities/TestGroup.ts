@@ -29,6 +29,9 @@ export class TestGroup {
   @Column("jsonb", { nullable: true })
   initLocalStorage?: any;
 
+  @Column("jsonb", { nullable: true })
+  variables?: any;
+
   @CreateDateColumn()
   createdAt!: Date;
 

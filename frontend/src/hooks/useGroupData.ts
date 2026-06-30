@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { api } from "../lib/api"
-import type { TestGroup } from "../types/api"
+import type { TestGroup, VariableItem } from "../types/api"
 import { toast } from "sonner"
 
 export function useGroupData(projectId: string | undefined) {
@@ -53,10 +53,10 @@ export function useGroupData(projectId: string | undefined) {
     }
   }
 
-  const handleCreateSubgroup = async (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown) => {
+  const handleCreateSubgroup = async (name: string, parentId: string | null, initCookies?: unknown, initLocalStorage?: unknown, variables?: Record<string, VariableItem>) => {
     if (!name.trim() || !projectId) return null
     try {
-      const newGroup = await api.createGroup(projectId, name.trim(), parentId, initCookies, initLocalStorage)
+      const newGroup = await api.createGroup(projectId, name.trim(), parentId, initCookies, initLocalStorage, variables)
       await loadGroups(projectId)
       toast.success("群組建立成功！")
       return newGroup

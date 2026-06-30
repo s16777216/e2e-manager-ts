@@ -1,8 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useLoaderData, useRouteLoaderData } from "react-router-dom";
+import React, { useState, useCallback } from "react";
+import {
+  useParams,
+  useNavigate,
+  useLoaderData,
+  useRouteLoaderData,
+} from "react-router-dom";
 import { api } from "../lib/api";
-import type { Testcase, TestRun, Project } from "../types/api";
+import type { Testcase, TestRun, Project, VariableItem } from "../types/api";
 import { JsonEditorAccordion } from "../components/custom/JsonEditorAccordion";
+import { VariablesEditor } from "../components/custom/VariablesEditor";
 import {
   Play,
   Edit,
@@ -34,7 +40,9 @@ export default function TestCaseDetailView() {
   const loaderData = { project: activeProject, testcase: testcaseData };
 
   // 測試案例狀態，初始值使用 loader 載入的 testcase
-  const [testcase, setTestcase] = useState<Testcase | null>(loaderData?.testcase ?? null);
+  const [testcase, setTestcase] = useState<Testcase | null>(
+    loaderData?.testcase ?? null,
+  );
   const [isLoading, setIsLoading] = useState(!loaderData?.testcase);
 
   // 編輯模式狀態，初始值使用 loader 載入的 testcase
@@ -51,10 +59,19 @@ export default function TestCaseDetailView() {
         }))
       : [{ action: "", expected: "", hasExpected: false }],
   );
-  const [tcExpected, setTcExpected] = useState(loaderData?.testcase?.expected ?? "");
+  const [tcExpected, setTcExpected] = useState(
+    loaderData?.testcase?.expected ?? "",
+  );
   const [isSaving, setIsSaving] = useState(false);
-  const [initCookies, setInitCookies] = useState<unknown>(loaderData?.testcase?.initCookies ?? null);
-  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(loaderData?.testcase?.initLocalStorage ?? null);
+  const [initCookies, setInitCookies] = useState<unknown>(
+    loaderData?.testcase?.initCookies ?? null,
+  );
+  const [initLocalStorage, setInitLocalStorage] = useState<unknown>(
+    loaderData?.testcase?.initLocalStorage ?? null,
+  );
+  const [tcVariables, setTcVariables] = useState<Record<string, VariableItem>>(
+    loaderData?.testcase?.variables ?? {},
+  );
   const [isJsonValid, setIsJsonValid] = useState(true);
 
   // 執行測試狀態
@@ -106,6 +123,7 @@ export default function TestCaseDetailView() {
     setTcExpected(newTc?.expected ?? "");
     setInitCookies(newTc?.initCookies ?? null);
     setInitLocalStorage(newTc?.initLocalStorage ?? null);
+    setTcVariables(newTc?.variables ?? {});
   }
 
   // 載入測試案例詳情與執行紀錄 (只在編輯保存後重載)
@@ -128,13 +146,23 @@ export default function TestCaseDetailView() {
       setTcExpected(data.expected);
       setInitCookies(data.initCookies);
       setInitLocalStorage(data.initLocalStorage);
+      setTcVariables(data.variables || {});
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error("載入測試案例失敗：" + msg);
     } finally {
       setIsLoading(false);
     }
-  }, [testCaseId]);
+  }, [
+    testCaseId,
+    setTestcase,
+    setTcName,
+    setTcSteps,
+    setTcExpected,
+    setInitCookies,
+    setInitLocalStorage,
+    setTcVariables,
+  ]);
 
   // 步驟表單增減
   const handleAddStepInput = () => {
@@ -185,6 +213,7 @@ export default function TestCaseDetailView() {
         expected: tcExpected.trim(),
         initCookies,
         initLocalStorage,
+        variables: tcVariables,
       });
       toast.success("測試案例修改成功！");
       setIsEditing(false);
@@ -424,8 +453,12 @@ export default function TestCaseDetailView() {
 
                   {/* 編輯自然語言步驟 */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      測試步驟 <span className="text-red-500">*</span>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                      <span>測試步驟</span>
+                      <span className="text-[9px] text-emerald-500 font-mono normal-case">
+                        {"(支援 {{變數}} 引用)"}
+                      </span>
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="flex flex-col gap-3">
                       {tcSteps.map((step, idx) => (
@@ -500,8 +533,12 @@ export default function TestCaseDetailView() {
 
                   {/* 編輯預期結果 */}
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      預期結果 <span className="text-red-500">*</span>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                      <span>預期結果</span>
+                      <span className="text-[9px] text-emerald-500 font-mono normal-case">
+                        {"(支援 {{變數}} 引用)"}
+                      </span>
+                      <span className="text-red-500">*</span>
                     </label>
                     <Textarea
                       value={tcExpected}
@@ -520,6 +557,11 @@ export default function TestCaseDetailView() {
                       setInitLocalStorage(localStorage);
                       setIsJsonValid(isValid);
                     }}
+                  />
+
+                  <VariablesEditor
+                    variables={tcVariables}
+                    onChange={(newVars) => setTcVariables(newVars)}
                   />
 
                   {/* 刪除測試案例入口 */}
@@ -556,6 +598,7 @@ export default function TestCaseDetailView() {
                         setTcExpected(testcase.expected);
                         setInitCookies(testcase.initCookies);
                         setInitLocalStorage(testcase.initLocalStorage);
+                        setTcVariables(testcase.variables || {});
                         setIsJsonValid(true);
                       }}
                       className="border-zinc-800 text-zinc-300 hover:bg-zinc-950"

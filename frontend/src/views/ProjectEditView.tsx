@@ -1,12 +1,16 @@
 import { useState } from "react";
-import { useNavigate, useParams, useRouteLoaderData } from "react-router-dom";
+import { useNavigate, useRouteLoaderData } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { ProjectForm } from "../components/custom/ProjectForm";
-import type { CookiesData, LocalStorageData, Project } from "@/types/api";
+import type {
+  CookiesData,
+  LocalStorageData,
+  Project,
+  VariableItem,
+} from "@/types/api";
 
 export default function ProjectEditView() {
   const navigate = useNavigate();
-  const { projectId } = useParams();
   const activeProject = useRouteLoaderData("project-root") as Project | null;
   const { handleUpdateProject, handleDeleteProject } = useProjectData();
   const [isSaving, setIsSaving] = useState(false);
@@ -16,6 +20,7 @@ export default function ProjectEditView() {
     description: string,
     initCookies: CookiesData | null,
     initLocalStorage: LocalStorageData | null,
+    variables?: Record<string, VariableItem>,
   ) => {
     if (!activeProject) return;
     setIsSaving(true);
@@ -26,8 +31,8 @@ export default function ProjectEditView() {
         description,
         initCookies,
         initLocalStorage,
+        variables,
       );
-      navigate(`/project/${activeProject.id}`);
     } finally {
       setIsSaving(false);
     }
@@ -60,6 +65,7 @@ export default function ProjectEditView() {
     description: activeProject.description || "",
     initCookies: activeProject.initCookies || null,
     initLocalStorage: activeProject.initLocalStorage || null,
+    variables: activeProject.variables || null,
   };
 
   return (

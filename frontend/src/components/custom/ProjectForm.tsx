@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Trash2, AlertTriangle, ArrowLeft } from "lucide-react";
 import { BaseDialog } from "./BaseDialog";
-import type { CookiesData, LocalStorageData } from "@/types/api";
+import type { CookiesData, LocalStorageData, VariableItem } from "@/types/api";
 import { Separator } from "../ui/separator";
 import Typography from "./Typography";
 import { FormBlock, FormField } from "./form";
 import z from "zod";
 import { Card, CardContent } from "../ui/card";
 import { toast } from "sonner";
+import { VariablesEditor } from "./VariablesEditor";
 
 interface ProjectFormProps {
   initialData?: {
@@ -18,6 +19,7 @@ interface ProjectFormProps {
     description: string;
     initCookies: CookiesData | null;
     initLocalStorage: LocalStorageData | null;
+    variables?: Record<string, VariableItem> | null;
   };
   submitLabel: string;
   isSubmitting: boolean;
@@ -26,6 +28,7 @@ interface ProjectFormProps {
     description: string,
     initCookies: CookiesData | null,
     initLocalStorage: LocalStorageData | null,
+    variables?: Record<string, VariableItem>,
   ) => Promise<void>;
   onCancel: () => void;
   onDelete?: () => Promise<void>;
@@ -191,6 +194,8 @@ export function ProjectForm({
   });
   type CookiesSettingFormData = z.infer<typeof cookiesSettingSchema>;
 
+  const variablesSettingSchema = z.object({});
+
   const [cookiesSettings, setCookiesSettings] =
     useState<CookiesSettingFormData>({
       initCookies: initialData?.initCookies
@@ -200,6 +205,10 @@ export function ProjectForm({
         ? JSON.stringify(initialData.initLocalStorage, null, 2)
         : "",
     });
+
+  const [variables, setVariables] = useState<Record<string, VariableItem>>(
+    initialData?.variables || {},
+  );
 
   const handleBaseSettingsSave = async (data: BaseSettingFormData) => {
     setBaseSettings(data);
@@ -216,6 +225,7 @@ export function ProjectForm({
         data.description || "",
         parsedCookies,
         parsedLocalStorage,
+        variables,
       );
       toast.success("設定已儲存");
     } catch (err: unknown) {
@@ -239,8 +249,32 @@ export function ProjectForm({
         baseSettings.description || "",
         parsedCookies,
         parsedLocalStorage,
+        variables,
       );
       toast.success("設定已儲存");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
+      toast.error(msg);
+    }
+  };
+
+  const handleVariablesSave = async () => {
+    try {
+      const parsedCookies: CookiesData = cookiesSettings?.initCookies
+        ? JSON.parse(cookiesSettings.initCookies)
+        : {};
+      const parsedLocalStorage: LocalStorageData =
+        cookiesSettings?.initLocalStorage
+          ? JSON.parse(cookiesSettings.initLocalStorage)
+          : {};
+      await onSubmit(
+        baseSettings.name,
+        baseSettings.description || "",
+        parsedCookies,
+        parsedLocalStorage,
+        variables,
+      );
+      toast.success("變數設定已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
       toast.error(msg);
@@ -313,6 +347,31 @@ export function ProjectForm({
               className={`bg-zinc-950/80 border text-zinc-100 font-mono text-xs resize-y placeholder:text-zinc-700 no-scrollbar`}
             />
           </FormField>
+        </FormBlock>
+        <Separator className="my-10" />
+        <FormBlock
+          label="環境變數 (Variables)"
+          description={
+            <>
+              設定專案級環境變數，這些變數將會在該專案下的所有測試案例執行時自動替換。
+              子層同名變數將會覆蓋父層。使用格式：在步驟、Cookie
+              或預期結果中輸入{" "}
+              <code className="text-emerald-400 bg-emerald-950/20 px-1 py-0.5 rounded font-mono font-bold">
+                {"{{變數名稱}}"}
+              </code>{" "}
+              即可進行替換。
+            </>
+          }
+          formSchema={variablesSettingSchema}
+          defaultValues={{}}
+          onSubmit={handleVariablesSave}
+          submitText={isSubmitting ? "儲存中..." : "儲存變數"}
+          submitIcon="save"
+        >
+          <VariablesEditor
+            variables={variables}
+            onChange={(newVars) => setVariables(newVars)}
+          />
         </FormBlock>
         {/* 危險區域 */}
         {/* 刪除專案入口 (僅在編輯模式且提供 onDelete 時展示) */}

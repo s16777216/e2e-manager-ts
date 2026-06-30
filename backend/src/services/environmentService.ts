@@ -31,3 +31,81 @@ export function mergeLocalStorage(parent: any, child: any): Record<string, any> 
   
   return { ...pObj, ...cObj };
 }
+
+export interface VariableItem {
+  value: string;
+  description?: string;
+}
+
+/**
+ * 合併多個變數來源，由左至右覆蓋合併 (Shallow Merge)
+ * 確保子層變數能正確覆蓋父層，支援物件格式 ({ value, description }) 與舊版字串格式的相容性
+ */
+export function mergeVariables(...sources: any[]): Record<string, VariableItem> {
+  const merged: Record<string, VariableItem> = {};
+  for (const src of sources) {
+    if (src && typeof src === "object" && !Array.isArray(src)) {
+      for (const [key, value] of Object.entries(src)) {
+        if (value !== undefined && value !== null) {
+          if (typeof value === "object" && "value" in value) {
+            merged[key] = {
+              value: String((value as any).value ?? ""),
+              description: (value as any).description ? String((value as any).description) : undefined,
+            };
+          } else {
+            merged[key] = {
+              value: String(value),
+            };
+          }
+        }
+      }
+    }
+  }
+  return merged;
+}
+
+/**
+ * 將 {{variableName}} 替換為變數值
+ * 若遇到未定義變數，保留原始佔位符，並可呼叫 onUndefined 回呼
+ */
+export function interpolateString(
+  template: string,
+  variables: Record<string, string>,
+  onUndefined?: (varName: string) => void
+): string {
+  if (typeof template !== "string") return template;
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+    const trimmed = varName.trim();
+    if (trimmed in variables) {
+      return variables[trimmed];
+    }
+    if (onUndefined) {
+      onUndefined(trimmed);
+    }
+    return match;
+  });
+}
+
+/**
+ * 遞迴替換陣列或巢狀 JSON 物件中的所有字串值
+ */
+export function interpolateObject(
+  obj: any,
+  variables: Record<string, string>,
+  onUndefined?: (varName: string) => void
+): any {
+  if (typeof obj === "string") {
+    return interpolateString(obj, variables, onUndefined);
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => interpolateObject(item, variables, onUndefined));
+  }
+  if (obj && typeof obj === "object") {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = interpolateObject(value, variables, onUndefined);
+    }
+    return result;
+  }
+  return obj;
+}

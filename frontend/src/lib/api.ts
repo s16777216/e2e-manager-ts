@@ -1,4 +1,4 @@
-import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun } from "../types/api";
+import type { Project, TestGroup, Testcase, TestRun, Task, TaskRun, VariableItem } from "../types/api";
 
 const BASE_URL = "/api";
 
@@ -36,10 +36,11 @@ export const api = {
     description?: string,
     initCookies?: unknown,
     initLocalStorage?: unknown,
+    variables?: Record<string, VariableItem>,
   ) =>
     request<Project>("/projects", {
       method: "POST",
-      body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
+      body: JSON.stringify({ name, description, initCookies, initLocalStorage, variables }),
     }),
   updateProject: (
     projectId: string,
@@ -47,10 +48,11 @@ export const api = {
     description?: string,
     initCookies?: unknown,
     initLocalStorage?: unknown,
+    variables?: Record<string, VariableItem>,
   ) =>
     request<Project>(`/projects/${projectId}`, {
       method: "PATCH",
-      body: JSON.stringify({ name, description, initCookies, initLocalStorage }),
+      body: JSON.stringify({ name, description, initCookies, initLocalStorage, variables }),
     }),
   deleteProject: (projectId: string) =>
     request<{ message: string }>(`/projects/${projectId}`, {
@@ -66,10 +68,11 @@ export const api = {
     parentId?: string | null,
     initCookies?: unknown,
     initLocalStorage?: unknown,
+    variables?: Record<string, VariableItem>,
   ) =>
     request<TestGroup>(`/projects/${projectId}/groups`, {
       method: "POST",
-      body: JSON.stringify({ name, parentId, initCookies, initLocalStorage }),
+      body: JSON.stringify({ name, parentId, initCookies, initLocalStorage, variables }),
     }),
   updateGroup: (
     groupId: string,
@@ -78,6 +81,7 @@ export const api = {
       parentId?: string | null;
       initCookies?: unknown;
       initLocalStorage?: unknown;
+      variables?: Record<string, VariableItem> | null;
     },
   ) =>
     request<TestGroup>(`/groups/${groupId}`, {
@@ -100,6 +104,7 @@ export const api = {
       expected: string;
       initCookies?: unknown;
       initLocalStorage?: unknown;
+      variables?: Record<string, VariableItem> | null;
     },
   ) =>
     request<Testcase>(`/groups/${groupId}/testcases`, {
@@ -114,6 +119,7 @@ export const api = {
       expected?: string;
       initCookies?: unknown;
       initLocalStorage?: unknown;
+      variables?: Record<string, VariableItem> | null;
     },
   ) =>
     request<Testcase>(`/testcases/${testcaseId}`, {
