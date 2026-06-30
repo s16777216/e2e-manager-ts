@@ -14,7 +14,7 @@ export default function StringFilter({
   return (
     <Input
       placeholder="查詢..."
-      className="w-full"
+      className="w-full h-6"
       value={value}
       onChange={(event) => {
         onChange?.(event.target.value);

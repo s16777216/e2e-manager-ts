@@ -26,7 +26,7 @@ export default function SelectFilter(props: SelectFilterProps) {
         context.setFilterValue(value);
       }}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full h-6">
         <SelectValue placeholder="選擇..." />
       </SelectTrigger>
       <SelectContent>

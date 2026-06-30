@@ -35,7 +35,7 @@ export default function NumberRangeFilter({
       <Input
         type="number"
         placeholder="最小值"
-        className="w-full no-spin-button"
+        className="w-full no-spin-button h-6"
         value={value[0]}
         onChange={(event) => {
           onChange?.([Number(event.target.value), value[1]]);
@@ -49,7 +49,7 @@ export default function NumberRangeFilter({
       <Input
         ref={inputMaxRef}
         placeholder="最大值"
-        className="w-full no-spin-button"
+        className="w-full no-spin-button h-6"
         value={value[1]}
         onChange={(event) => {
           const input = event.target.value;
