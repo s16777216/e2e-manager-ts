@@ -16,25 +16,25 @@ export interface FormBlockProps<T extends z.ZodTypeAny> {
   label: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
-  formSchema: T;
-  defaultValues: UseFormProps<z.infer<T>>["defaultValues"];
-  onSubmit: (data: z.infer<T>) => void;
+  formSchema?: T;
+  defaultValues?: UseFormProps<z.infer<T>>["defaultValues"];
+  onSubmit?: (data: z.infer<T>) => void;
   submitText?: string;
   submitIcon?: IconName;
+  showSubmitButton?: boolean;
 }
 
-const FormBlock = <T extends z.ZodTypeAny>(
-  props: FormBlockProps<T>,
-) => {
+const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
   const {
     label,
     description,
     children,
-    formSchema,
+    formSchema = z.object({}),
     defaultValues,
-    onSubmit,
+    onSubmit = () => {},
     submitText = "儲存",
     submitIcon = "save",
+    showSubmitButton = true,
   } = props;
 
   type FormDataType = z.infer<typeof formSchema>;
@@ -58,10 +58,12 @@ const FormBlock = <T extends z.ZodTypeAny>(
           <FieldGroup>
             <FormContext.Provider value={form}>{children}</FormContext.Provider>
             <Field orientation="horizontal" className="flex justify-end">
-              <Button type="submit" className="max-sm:w-full">
-                <DynamicIcon name={submitIcon} />
-                {submitText}
-              </Button>
+              {showSubmitButton && (
+                <Button type="submit" className="max-sm:w-full">
+                  <DynamicIcon name={submitIcon} />
+                  {submitText}
+                </Button>
+              )}
             </Field>
           </FieldGroup>
         </form>

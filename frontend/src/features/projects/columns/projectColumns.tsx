@@ -1,6 +1,6 @@
 import type { Project } from "@/types/api";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTableColumnHeader } from "../components/custom/table/ColumnHeader";
+import { DataTableColumnHeader } from "../../../components/custom/table/ColumnHeader";
 
 export const columns: ColumnDef<Project>[] = [
   {

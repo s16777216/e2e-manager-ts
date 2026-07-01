@@ -83,7 +83,7 @@ export function DataTableColumnHeader<TData, TValue>({
       <div className="ml-auto flex items-center">
         {column.getCanSort() && (
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"

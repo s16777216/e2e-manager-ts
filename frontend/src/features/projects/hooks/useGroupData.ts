@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
-import { api } from "../lib/api"
-import type { TestGroup, VariableItem } from "../types/api"
+import { api } from "../../../lib/api"
+import type { TestGroup, VariableItem } from "../../../types/api"
 import { toast } from "sonner"
 
 export function useGroupData(projectId: string | undefined) {

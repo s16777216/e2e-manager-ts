@@ -1,6 +1,6 @@
 import { Folder, ChevronRight, ChevronDown, Plus, Trash2, FileText, Loader2, Play, Edit2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { StatusBadge } from "./StatusBadge"
+import { StatusBadge } from "../../../components/custom/StatusBadge"
 
 export interface FlatTreeRow {
   id: string;

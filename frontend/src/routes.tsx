@@ -1,16 +1,18 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import WelcomeView from "./views/WelcomeView";
-import ProjectsView from "./views/ProjectsView";
-import ProjectDetailView from "./views/ProjectDetailView";
 import TestCaseDetailView from "./views/TestCaseDetailView";
 import SSEConsoleView from "./views/SSEConsoleView";
 import TaskDetailView from "./views/TaskDetailView";
 import HistoryView from "./views/HistoryView";
-import ProjectCreateView from "./views/ProjectCreateView";
-import ProjectEditView from "./views/ProjectEditView";
 import SettingsView from "./views/SettingsView";
 import TestFormView from "./views/TestFormView";
+import {
+  ProjectListView,
+  ProjectCreateView,
+  ProjectEditView,
+  ProjectDetailView,
+} from "./features/projects";
 
 import type { RouteHandle } from "./types/breadcrumb";
 import { projectLoader, testcaseLoader, taskLoader } from "./lib/loaders";
@@ -19,6 +21,7 @@ import { FolderPlusIcon } from "./components/icon/folder-plus";
 import { HistoryIcon } from "./components/icon/history";
 import { FileTextIcon } from "./components/icon/file-text";
 import { SettingsIcon } from "./components/icon/settings";
+import { SquarePen } from "lucide-react";
 
 export const router = createBrowserRouter([
   {
@@ -39,7 +42,7 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <ProjectsView />,
+            element: <ProjectListView />,
           },
           {
             path: "new",
@@ -67,7 +70,7 @@ export const router = createBrowserRouter([
                 element: <ProjectEditView />,
                 handle: {
                   label: "編輯專案",
-                  icon: "edit",
+                  iconNode: <SquarePen size={14} />,
                 } satisfies RouteHandle,
               },
               {
@@ -83,7 +86,8 @@ export const router = createBrowserRouter([
                 path: "run/:runId",
                 element: <SSEConsoleView />,
                 handle: {
-                  label: (_data, params) => `執行 #${params.runId ? params.runId.substring(0, 8) : "..."}`,
+                  label: (_data, params) =>
+                    `執行 #${params.runId ? params.runId.substring(0, 8) : "..."}`,
                   icon: "play",
                 } satisfies RouteHandle,
               },
@@ -92,7 +96,8 @@ export const router = createBrowserRouter([
                 loader: taskLoader,
                 element: <TaskDetailView />,
                 handle: {
-                  label: (_data, params) => `批次 #${params.taskId ? params.taskId.substring(0, 8) : "..."}`,
+                  label: (_data, params) =>
+                    `批次 #${params.taskId ? params.taskId.substring(0, 8) : "..."}`,
                   iconNode: <HistoryIcon size={14} />,
                 } satisfies RouteHandle<typeof taskLoader>,
               },
