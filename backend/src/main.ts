@@ -167,7 +167,7 @@ async function main() {
   // 7. 啟動測試
   console.log("[E2E Manager] 啟動 AI Agent 測試流轉圖...");
   try {
-    await graph.invoke(initial_state);
+    await graph.invoke(initial_state, { recursionLimit: Infinity });
   } catch (error: any) {
     console.error(`\n[E2E Manager] 測試圖執行期間發生未預期異常：${error.message}`);
     try {

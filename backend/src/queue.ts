@@ -281,7 +281,7 @@ export class TaskQueue {
         final_reason: "",
       };
 
-      await graph.invoke(initial_state);
+      await graph.invoke(initial_state, { recursionLimit: Infinity });
       console.log(`[Worker] 任務 ${runId} 執行成功結束。`);
     } catch (error: any) {
       console.error(`[Worker] 任務 ${runId} 執行時發生未預期異常：`, error);
