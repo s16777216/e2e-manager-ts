@@ -2,7 +2,14 @@
 
 ## Purpose
 TBD - created by archiving change serverize-e2e-manager-with-db. Update Purpose after archive.
-## Requirements
+
+## Removed Requirements
+
+### Requirement: CLI Test Execution
+**Reason**: 系統已完全改由 API Server 模式運作，CLI 模式為過渡期遺留，已無使用路徑。
+**Migration**: 透過 `POST /api/testcases/:id/run` 觸發測試執行，再以 `GET /api/runs/:runId` 查詢結果。
+
+
 ### Requirement: Project and Group Hierarchical CRUD Operations
 系統 MUST 提供專案（Project）與群組（Group）的 CRUD 管理端點。群組端點 MUST 支援透過 `parent_id` 建立嵌套子群組，並在更新 `parent_id` 時驗證防止循環引用。此外，系統的 API 路由模組 SHALL 進行模組化拆分與解耦，且保證外部 API 的存取路徑與響應行為完全不變。
 

@@ -3,12 +3,10 @@
   "version": "1.0.0",
   "description": "AI Agent Step-by-Step E2E Test Manager (TypeScript 版)",
   "type": "module",
-  "main": "dist/main.js",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx src/main.ts",
     "server": "tsx src/server.ts",
     "build": "tsc --project tsconfig.build.json",
-    "start": "node dist/main.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
