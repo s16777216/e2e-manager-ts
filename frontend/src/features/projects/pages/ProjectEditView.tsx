@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { useNavigate, useRouteLoaderData, useRevalidator } from "react-router-dom";
+import {
+  useNavigate,
+  useRouteLoaderData,
+  useRevalidator,
+} from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -162,7 +166,7 @@ export default function ProjectEditView() {
       />
       <Separator className="my-10" />
       <ProjectFormVariableBlock
-        variables={formState.variables}
+        variables={formState.variables!}
         onChange={handleVariablesChange}
       />
       <Separator className="my-10" />
