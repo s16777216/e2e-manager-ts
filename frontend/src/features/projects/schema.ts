@@ -88,7 +88,14 @@ export const schema = z.object({
       },
     )
     .optional(),
-  variables: z.object({}),
+  variables: z
+    .record(
+      z.object({
+        value: z.string(),
+        description: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const generalFormSchema = schema.pick({

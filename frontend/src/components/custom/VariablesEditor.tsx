@@ -23,8 +23,32 @@ interface LocalPair {
   description: string;
 }
 
+function parseVariablesToPairs(
+  variables?: Record<string, VariableItem> | null,
+): LocalPair[] {
+  return variables && typeof variables === "object"
+    ? Object.entries(variables).map(([key, item]) => {
+        if (item && typeof item === "object") {
+          return {
+            key,
+            value: String(item.value ?? ""),
+            description: String(item.description ?? ""),
+          };
+        } else {
+          return {
+            key,
+            value: String(item ?? ""),
+            description: "",
+          };
+        }
+      })
+    : [];
+}
+
 export function VariablesEditor({ variables, onChange }: VariablesEditorProps) {
-  const [pairs, setPairs] = useState<LocalPair[]>([]);
+  const [pairs, setPairs] = useState<LocalPair[]>(() =>
+    parseVariablesToPairs(variables),
+  );
 
   // Dialog 相關狀態
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,23 +65,7 @@ export function VariablesEditor({ variables, onChange }: VariablesEditorProps) {
 
   if (variables !== prevVariables) {
     setPrevVariables(variables);
-    const initialPairs = variables && typeof variables === "object"
-      ? Object.entries(variables).map(([key, item]) => {
-          if (item && typeof item === "object") {
-            return {
-              key,
-              value: String(item.value ?? ""),
-              description: String(item.description ?? ""),
-            };
-          } else {
-            return {
-              key,
-              value: String(item ?? ""),
-              description: "",
-            };
-          }
-        })
-      : [];
+    const initialPairs = parseVariablesToPairs(variables);
 
     const currentKeys = pairs.map((p) => p.key).join(",");
     const initialKeys = initialPairs.map((p) => p.key).join(",");

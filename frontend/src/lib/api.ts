@@ -44,15 +44,17 @@ export const api = {
     }),
   updateProject: (
     projectId: string,
-    name: string,
-    description?: string,
-    initCookies?: unknown,
-    initLocalStorage?: unknown,
-    variables?: Record<string, VariableItem>,
+    updates: {
+      name?: string;
+      description?: string;
+      initCookies?: unknown;
+      initLocalStorage?: unknown;
+      variables?: Record<string, VariableItem> | null;
+    },
   ) =>
     request<Project>(`/projects/${projectId}`, {
       method: "PATCH",
-      body: JSON.stringify({ name, description, initCookies, initLocalStorage, variables }),
+      body: JSON.stringify(updates),
     }),
   deleteProject: (projectId: string) =>
     request<{ message: string }>(`/projects/${projectId}`, {

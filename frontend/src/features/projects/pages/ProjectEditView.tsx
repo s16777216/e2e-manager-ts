@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useRouteLoaderData } from "react-router-dom";
+import { useNavigate, useRouteLoaderData, useRevalidator } from "react-router-dom";
 import { useProjectData } from "../hooks/useProjectData";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import ProjectFormDangerBlock from "../components/ProjectFormDangerBlock";
 
 export default function ProjectEditView() {
   const navigate = useNavigate();
+  const { revalidate } = useRevalidator();
   const activeProject = useRouteLoaderData("project-root") as Project | null;
   const { handleUpdateProject, handleDeleteProject } = useProjectData();
   const [isSaving, setIsSaving] = useState(false);
@@ -62,20 +63,11 @@ export default function ProjectEditView() {
       };
       setFormState(updateData);
 
-      const parsedCookies: CookiesData = updateData.initCookies
-        ? JSON.parse(updateData.initCookies)
-        : {};
-      const parsedLocalStorage: LocalStorageData = updateData.initLocalStorage
-        ? JSON.parse(updateData.initLocalStorage)
-        : {};
-      await handleUpdateProject(
-        activeProject.id,
-        updateData.name,
-        updateData.description || "",
-        parsedCookies,
-        parsedLocalStorage,
-        updateData.variables,
-      );
+      await handleUpdateProject(activeProject.id, {
+        name: data.name,
+        description: data.description || "",
+      });
+      revalidate();
       toast.success("設定已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
@@ -102,14 +94,11 @@ export default function ProjectEditView() {
       const parsedLocalStorage: LocalStorageData = updateData.initLocalStorage
         ? JSON.parse(updateData.initLocalStorage)
         : {};
-      await handleUpdateProject(
-        activeProject.id,
-        updateData.name,
-        updateData.description || "",
-        parsedCookies,
-        parsedLocalStorage,
-        updateData.variables,
-      );
+      await handleUpdateProject(activeProject.id, {
+        initCookies: parsedCookies,
+        initLocalStorage: parsedLocalStorage,
+      });
+      revalidate();
       toast.success("設定已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";
@@ -130,20 +119,10 @@ export default function ProjectEditView() {
       };
       setFormState(updateData);
 
-      const parsedCookies: CookiesData = updateData.initCookies
-        ? JSON.parse(updateData.initCookies)
-        : {};
-      const parsedLocalStorage: LocalStorageData = updateData.initLocalStorage
-        ? JSON.parse(updateData.initLocalStorage)
-        : {};
-      await handleUpdateProject(
-        activeProject.id,
-        updateData.name,
-        updateData.description || "",
-        parsedCookies,
-        parsedLocalStorage,
-        updateData.variables,
-      );
+      await handleUpdateProject(activeProject.id, {
+        variables,
+      });
+      revalidate();
       toast.success("變數設定已儲存");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "儲存失敗，請稍後再試";

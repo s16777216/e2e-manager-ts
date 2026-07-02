@@ -53,21 +53,23 @@ export function useProjectData() {
 
   const handleUpdateProject = async (
     projectId: string,
-    name: string,
-    description?: string,
-    initCookies?: unknown,
-    initLocalStorage?: unknown,
-    variables?: Record<string, VariableItem>,
+    updates: {
+      name?: string;
+      description?: string;
+      initCookies?: unknown;
+      initLocalStorage?: unknown;
+      variables?: Record<string, VariableItem> | null;
+    },
   ) => {
-    if (!name.trim()) return null
+    if (updates.name !== undefined && !updates.name.trim()) return null
     try {
       const updatedProj = await api.updateProject(
         projectId,
-        name.trim(),
-        description?.trim(),
-        initCookies,
-        initLocalStorage,
-        variables,
+        {
+          ...updates,
+          name: updates.name ? updates.name.trim() : undefined,
+          description: updates.description !== undefined ? updates.description.trim() : undefined,
+        }
       )
       setProjects((prev) => prev.map((p) => p.id === projectId ? updatedProj : p))
       toast.success("專案更新成功！")
