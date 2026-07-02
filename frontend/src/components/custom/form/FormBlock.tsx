@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/field";
 import { FormContext } from "./FormContext";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
+import clsx, { type ClassValue } from "clsx";
+import { cn } from "@/lib/utils";
 
 export interface FormBlockProps<T extends z.ZodTypeAny> {
   label: React.ReactNode;
@@ -22,6 +24,10 @@ export interface FormBlockProps<T extends z.ZodTypeAny> {
   submitText?: string;
   submitIcon?: IconName;
   showSubmitButton?: boolean;
+  layout?: "vertical" | "horizontal";
+  footerFront?: React.ReactNode;
+  footerEnd?: React.ReactNode;
+  className?: ClassValue;
 }
 
 const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
@@ -35,6 +41,10 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
     submitText = "儲存",
     submitIcon = "save",
     showSubmitButton = true,
+    layout = "horizontal",
+    footerFront,
+    footerEnd,
+    className,
   } = props;
 
   type FormDataType = z.infer<typeof formSchema>;
@@ -45,8 +55,15 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
   });
 
   return (
-    <FieldSet className="grid grid-cols-1 gap-10 lg:grid-cols-3">
-      {/* Vertical Tabs List */}
+    <FieldSet
+      className={cn(
+        clsx("grid gap-10", {
+          "grid-cols-1 lg:grid-cols-3": layout === "horizontal",
+          "grid-cols-1": layout === "vertical",
+        }),
+        className,
+      )}
+    >
       <div className="flex flex-col space-y-1">
         <FieldLegend>{label}</FieldLegend>
         <FieldDescription>{description}</FieldDescription>
@@ -58,12 +75,14 @@ const FormBlock = <T extends z.ZodTypeAny>(props: FormBlockProps<T>) => {
           <FieldGroup>
             <FormContext.Provider value={form}>{children}</FormContext.Provider>
             <Field orientation="horizontal" className="flex justify-end">
+              {footerFront}
               {showSubmitButton && (
                 <Button type="submit" className="max-sm:w-full">
                   <DynamicIcon name={submitIcon} />
                   {submitText}
                 </Button>
               )}
+              {footerEnd}
             </Field>
           </FieldGroup>
         </form>

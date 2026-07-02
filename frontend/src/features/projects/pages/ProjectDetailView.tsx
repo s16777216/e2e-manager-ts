@@ -3,9 +3,10 @@ import { useParams, useNavigate, useRouteLoaderData } from "react-router-dom";
 import { useGroupData } from "../hooks/useGroupData";
 import { type FlatTreeRow } from "../components/GroupTreeNode";
 import GroupTreeTable from "../components/GroupTreeTable";
-import { NewSubgroupDialog } from "../components/NewSubgroupDialog";
+import { NewGroupSheet } from "../components/NewGroupSheet";
+import { GroupEditSheet } from "../components/GroupEditSheet";
 import { api } from "../../../lib/api";
-import { Plus, Sparkles, Play, Edit2 } from "lucide-react";
+import { Plus, Play, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ import type { TestGroup, Testcase, Project } from "../../../types/api";
 import TestCaseCreateDialog from "../components/TestCaseCreateDialog";
 import GroupDeleteDialog from "../components/GroupDeleteDialog";
 import TestCaseDeleteDialog from "../components/TestCaseDeleteDialog";
+import Typography from "@/components/custom/Typography";
 
 export default function ProjectDetailView() {
   const { projectId } = useParams();
@@ -71,8 +73,9 @@ export default function ProjectDetailView() {
   );
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
 
-  // 1. 新增群組彈窗狀態
+  // 1. 新增與編輯群組彈窗狀態
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
   const [newGroupParentId, setNewGroupParentId] = useState<string | null>(null);
   const [groupToEdit, setGroupToEdit] = useState<TestGroup | null>(null);
 
@@ -290,7 +293,10 @@ export default function ProjectDetailView() {
   };
 
   // 儲存新測試案例
-  const handleSaveTestCaseSubmit = async (name: string, targetGroupId: string) => {
+  const handleSaveTestCaseSubmit = async (
+    name: string,
+    targetGroupId: string,
+  ) => {
     setIsSavingTestCase(true);
     try {
       await api.createTestcase(targetGroupId, {
@@ -315,43 +321,41 @@ export default function ProjectDetailView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-foreground overflow-y-auto select-none p-8">
+    <div className="flex-1 flex flex-col select-none p-8">
       {/* 頂部 Header & 麵包屑已移至全域 */}
       <div className="max-w-6xl w-full mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 bg-clip-text text-transparent flex items-center gap-2">
-            <Sparkles size={20} className="text-primary animate-pulse" />
+          <h2 className="text-3xl font-extrabold flex items-center gap-2">
             {activeProject ? activeProject.name : "載入專案中..."}
             {activeProject && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate(`/project/${activeProject.id}/edit`)}
-                className="h-7 w-7 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-950 rounded-lg transition-colors ml-1 shrink-0"
+                className="h-7 w-7 ml-1 text-zinc-400"
                 title="編輯專案資訊"
               >
                 <Edit2 size={13} />
               </Button>
             )}
           </h2>
-          <p className="text-zinc-400 text-sm mt-1.5 leading-relaxed">
-            {activeProject?.description ||
-              "選擇下方測試案例開始視覺測試，或建立新的測試群組與案例。"}
-          </p>
+          <Typography type="p" className="text-zinc-400 mt-1.5 text-sm">
+            {activeProject?.description}
+          </Typography>
         </div>
 
         {/* 頂部操作按鈕 */}
         <div className="flex items-center gap-3">
           <Button
             onClick={handleRunAllProject}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white transition-all font-semibold flex items-center gap-2 px-4 py-5 shadow-lg shadow-emerald-600/10 border-none"
+            className="bg-emerald-700 hover:bg-emerald-600 text-white transition-all font-semibold px-4 py-5"
           >
             <Play size={14} fill="currentColor" /> 執行所有案例
           </Button>
           <Button
             variant="outline"
             onClick={() => triggerAddGroup(selectedGroupId || null)}
-            className="border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 transition-all font-semibold flex items-center gap-2 px-4 py-5"
+            className="border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-zinc-100 font-semibold px-4 py-5"
           >
             <Plus size={14} /> 建立新群組
           </Button>
@@ -362,7 +366,7 @@ export default function ProjectDetailView() {
               }
               setShowNewTestCaseModal(true);
             }}
-            className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 transition-all font-semibold flex items-center gap-2 px-5 py-5 shadow-lg shadow-zinc-100/10"
+            className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 font-semibold px-5 py-5"
           >
             <Plus size={14} /> 建立測試案例
           </Button>
@@ -384,7 +388,7 @@ export default function ProjectDetailView() {
           if (g) {
             setGroupToEdit(g);
             setNewGroupParentId(g.parentId || null);
-            setShowNewGroupModal(true);
+            setShowEditGroupModal(true);
           }
         }}
         onDeleteGroup={setDeleteGroupId}
@@ -393,31 +397,12 @@ export default function ProjectDetailView() {
       />
 
       {/* 新群組彈窗 */}
-      <NewSubgroupDialog
-        key={`${showNewGroupModal}-${groupToEdit?.id || "new"}`}
+      <NewGroupSheet
         open={showNewGroupModal}
-        onOpenChange={(open) => {
-          setShowNewGroupModal(open);
-          if (!open) {
-            setGroupToEdit(null);
-          }
-        }}
+        onOpenChange={setShowNewGroupModal}
         parentId={newGroupParentId}
-        groupToEdit={groupToEdit}
-        onCreateGroup={async (
-          name,
-          parentId,
-          initCookies,
-          initLocalStorage,
-          variables,
-        ) => {
-          const res = await handleCreateSubgroup(
-            name,
-            parentId,
-            initCookies,
-            initLocalStorage,
-            variables,
-          );
+        onCreateGroup={async (name, parentId) => {
+          const res = await handleCreateSubgroup(name, parentId);
           if (res) {
             if (parentId) {
               setExpandedGroups((prev) => ({ ...prev, [parentId]: true }));
@@ -425,31 +410,44 @@ export default function ProjectDetailView() {
             setShowNewGroupModal(false);
           }
         }}
-        onUpdateGroup={async (
-          name,
-          initCookies,
-          initLocalStorage,
-          variables,
-        ) => {
-          if (!groupToEdit) return;
-          try {
-            await api.updateGroup(groupToEdit.id, {
-              name,
-              initCookies,
-              initLocalStorage,
-              variables,
-            });
-            if (projectId) {
-              await loadGroups(projectId);
-            }
-            toast.success("群組更新成功！");
-            setShowNewGroupModal(false);
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            toast.error("更新群組失敗：" + msg);
-          }
-        }}
       />
+
+      {/* 編輯群組彈窗 */}
+      {groupToEdit && (
+        <GroupEditSheet
+          open={showEditGroupModal}
+          onOpenChange={(open) => {
+            setShowEditGroupModal(open);
+            if (!open) {
+              setGroupToEdit(null);
+            }
+          }}
+          groupToEdit={groupToEdit}
+          onUpdateGroup={async (
+            name,
+            initCookies,
+            initLocalStorage,
+            variables,
+          ) => {
+            try {
+              await api.updateGroup(groupToEdit.id, {
+                name,
+                initCookies,
+                initLocalStorage,
+                variables,
+              });
+              if (projectId) {
+                await loadGroups(projectId);
+              }
+              toast.success("群組更新成功！");
+              setShowEditGroupModal(false);
+            } catch (err: unknown) {
+              const msg = err instanceof Error ? err.message : String(err);
+              toast.error("更新群組失敗：" + msg);
+            }
+          }}
+        />
+      )}
 
       <TestCaseCreateDialog
         open={showNewTestCaseModal}

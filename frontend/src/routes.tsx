@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import WelcomeView from "./views/WelcomeView";
-import TestCaseDetailView from "./views/TestCaseDetailView";
+import TestCaseDetailView from "./features/projects/pages/TestCaseDetailView";
 import SSEConsoleView from "./views/SSEConsoleView";
 import TaskDetailView from "./views/TaskDetailView";
 import HistoryView from "./views/HistoryView";

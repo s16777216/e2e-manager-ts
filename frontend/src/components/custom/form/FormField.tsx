@@ -11,6 +11,8 @@ import {
   Controller,
 } from "react-hook-form";
 import { FormContext } from "./FormContext";
+import type { ClassValue } from "clsx";
+import { cn } from "@/lib/utils";
 
 export interface FormFieldProps {
   name: string;
@@ -22,10 +24,11 @@ export interface FormFieldProps {
         field: ControllerRenderProps<FieldValues, string>,
         id: string,
       ) => React.ReactNode);
+  className?: ClassValue;
 }
 
 function FormField(props: FormFieldProps) {
-  const { name, label, description, children } = props;
+  const { name, label, description, children, className = "" } = props;
   const form = useContext(FormContext);
 
   if (!form) {
@@ -39,8 +42,8 @@ function FormField(props: FormFieldProps) {
       name={name}
       control={form.control}
       render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.invalid}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        <Field data-invalid={fieldState.invalid} className={cn(className)}>
+          {label && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
           {children &&
             (React.isValidElement(children)
               ? React.cloneElement(children, {
