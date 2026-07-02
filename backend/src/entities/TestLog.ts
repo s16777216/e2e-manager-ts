@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Relation } from "typeorm";
 import { TestRunStep } from "./TestRunStep.js";
 
 @Entity()
@@ -25,7 +25,7 @@ export class TestLog {
   totalTokens!: number;
 
   @ManyToOne(() => TestRunStep, step => step.logs, { onDelete: "CASCADE" })
-  step!: TestRunStep;
+  step!: Relation<TestRunStep>;
 
   @CreateDateColumn()
   createdAt!: Date;

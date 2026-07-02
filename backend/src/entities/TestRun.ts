@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, Relation } from "typeorm";
 import { Testcase } from "./Testcase.js";
 import { TestRunStep } from "./TestRunStep.js";
 import { Task } from "./Task.js";
@@ -51,7 +51,7 @@ export class TestRun {
   steps!: TestRunStep[];
 
   @ManyToOne(() => Task, task => task.runs, { nullable: true, onDelete: "SET NULL" })
-  task!: Task | null;
+  task!: Relation<Task> | null;
 
   @CreateDateColumn()
   createdAt!: Date;

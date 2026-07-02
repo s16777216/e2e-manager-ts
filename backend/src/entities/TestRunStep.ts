@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, Relation } from "typeorm";
 import { TestRun } from "./TestRun.js";
 import { TestLog } from "./TestLog.js";
 
@@ -29,7 +29,7 @@ export class TestRunStep {
   totalTokens!: number;
 
   @ManyToOne(() => TestRun, run => run.steps, { onDelete: "CASCADE" })
-  run!: TestRun;
+  run!: Relation<TestRun>;
 
   @OneToMany(() => TestLog, log => log.step)
   logs!: TestLog[];

@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------
+  # 資料庫服務 (PostgreSQL 15)
+  # ----------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: e2e-manager-db
+    environment:
+      POSTGRES_DB: e2e_manager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432" # 避開本機 5432 埠口衝突，映射至 5433 以利本地 GUI 連線偵錯
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d e2e_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # ----------------------------------------------------
+  # 後端 API 服務與 E2E Worker (Hono + Playwright)
+  # ----------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: e2e-manager-backend
+    expose:
+      - "3001" # 僅在 Docker 內部虛擬網路中暴露 3001，不直接對外部網路公開
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/e2e_manager
+      - PORT=3001
+      - QUEUE_PORT=3002
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  # ----------------------------------------------------
+  # 前端代理服務 (Nginx 託管網頁並代理 API / SSE 串流)
+  # ----------------------------------------------------
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: e2e-manager-frontend
+    ports:
+      - "3001:80" # 將 Nginx 的 80 埠口對外映射至 3001 埠口，達成同源存取
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  postgres_data:

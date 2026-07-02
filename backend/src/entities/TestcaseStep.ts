@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, Relation } from "typeorm";
 import { Testcase } from "./Testcase.js";
 
 @Entity()
@@ -19,7 +19,7 @@ export class TestcaseStep {
   hasExpected!: boolean;
 
   @ManyToOne(() => Testcase, testcase => testcase.steps, { onDelete: "CASCADE" })
-  testcase!: Testcase;
+  testcase!: Relation<Testcase>;
 
   @CreateDateColumn()
   createdAt!: Date;
