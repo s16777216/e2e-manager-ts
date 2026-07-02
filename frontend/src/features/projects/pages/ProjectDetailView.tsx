@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useRouteLoaderData } from "react-router-dom";
 import { useGroupData } from "../hooks/useGroupData";
-import { type FlatTreeRow } from "../components/GroupTreeNode";
-import GroupTreeTable from "../components/GroupTreeTable";
+import { type ColumnDef, type ExpandedState } from "@tanstack/react-table";
+import { DataTable } from "../../../components/custom/table/DataTable";
+import { StatusBadge } from "../../../components/custom/StatusBadge";
 import { NewGroupSheet } from "../components/NewGroupSheet";
 import { GroupEditSheet } from "../components/GroupEditSheet";
 import { api } from "../../../lib/api";
-import { Plus, Play, Edit2 } from "lucide-react";
+import { Plus, Play, Edit2, Folder, ChevronRight, ChevronDown, Trash2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -16,6 +17,17 @@ import TestCaseCreateDialog from "../components/TestCaseCreateDialog";
 import GroupDeleteDialog from "../components/GroupDeleteDialog";
 import TestCaseDeleteDialog from "../components/TestCaseDeleteDialog";
 import Typography from "@/components/custom/Typography";
+
+export interface ProjectTreeRow {
+  id: string;
+  name: string;
+  type: "group" | "testcase" | "loading";
+  itemCount: number;
+  lastStatus?: "pending" | "running" | "passed" | "failed" | "error";
+  parentId: string | null;
+  children?: ProjectTreeRow[];
+  originalData: TestGroup | Testcase | null;
+}
 
 export default function ProjectDetailView() {
   const { projectId } = useParams();
@@ -134,15 +146,18 @@ export default function ProjectDetailView() {
     setDeleteTestCaseName(name);
   };
 
+  // 樹狀展開狀態
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+
   // 專案改變時清空狀態與展開
   useEffect(() => {
     Promise.resolve().then(() => {
       setTestcasesMap({});
       setLoadingMap({});
-      setExpandedGroups({});
+      setExpanded({});
       setSelectedGroupId("");
     });
-  }, [projectId, setExpandedGroups]);
+  }, [projectId]);
 
   // 當 selectedGroupId 改變時，同步預選 targetGroupId
   const [prevSelectedGroupId, setPrevSelectedGroupId] =
@@ -154,13 +169,49 @@ export default function ProjectDetailView() {
     }
   }
 
+  // 統一的展開狀態變更與懶加載攔截器
+  const handleExpandedChange = (updater: React.SetStateAction<ExpandedState>) => {
+    let next: ExpandedState;
+    if (typeof updater === "function") {
+      next = (updater as Function)(expanded);
+    } else {
+      next = updater;
+    }
+
+    setExpanded(next);
+
+    const nextMap = next as Record<string, boolean>;
+    const prevMap = expanded as Record<string, boolean>;
+
+    // 觸發懶加載 side-effect
+    Object.keys(nextMap).forEach((groupId) => {
+      if (nextMap[groupId] && !prevMap[groupId]) {
+        if (groupId.startsWith("loading-")) return;
+        if (!testcasesMap[groupId] && !loadingMap[groupId]) {
+          setLoadingMap((prev) => ({ ...prev, [groupId]: true }));
+          api.getTestcases(groupId)
+            .then((data) => {
+              setTestcasesMap((prev) => ({ ...prev, [groupId]: data }));
+            })
+            .catch((err) => {
+              console.error(`載入群組 ${groupId} 的測試案例失敗:`, err);
+            })
+            .finally(() => {
+              setLoadingMap((prev) => ({ ...prev, [groupId]: false }));
+            });
+        }
+      }
+    });
+  };
+
   // 當 refreshTrigger 改變時重新獲取當前已展開群組的測試案例 (以即時更新最新建立的測試案例)
   useEffect(() => {
     if (!projectId) return;
 
     const reloadActiveTestcases = async () => {
-      const activeGroupIds = Object.keys(expandedGroups).filter(
-        (id) => expandedGroups[id],
+      const expandedMap = expanded as Record<string, boolean>;
+      const activeGroupIds = Object.keys(expandedMap).filter(
+        (id) => expandedMap[id],
       );
       if (activeGroupIds.length === 0) return;
 
@@ -175,98 +226,86 @@ export default function ProjectDetailView() {
     };
 
     reloadActiveTestcases();
-  }, [refreshTrigger, projectId, expandedGroups]);
+  }, [refreshTrigger, projectId, expanded]);
 
-  // 處理群組展開與收合 (附帶 lazy loading)
-  const handleToggleExpand = async (groupId: string) => {
-    const isCurrentlyExpanded = expandedGroups[groupId] || false;
-    const nextExpanded = !isCurrentlyExpanded;
-
-    setExpandedGroups({
-      ...expandedGroups,
-      [groupId]: nextExpanded,
+  // 處理群組展開與收合 (供外部或特殊情況直接觸發)
+  const handleToggleExpand = (groupId: string) => {
+    handleExpandedChange((prev) => {
+      const prevMap = prev as Record<string, boolean>;
+      return {
+        ...prevMap,
+        [groupId]: !prevMap[groupId],
+      };
     });
+  };
 
-    if (nextExpanded && !testcasesMap[groupId] && !loadingMap[groupId]) {
-      setLoadingMap((prev) => ({ ...prev, [groupId]: true }));
-      try {
-        const data = await api.getTestcases(groupId);
-        setTestcasesMap((prev) => ({ ...prev, [groupId]: data }));
-      } catch (err) {
-        console.error(`載入群組 ${groupId} 的測試案例失敗:`, err);
-      } finally {
-        setLoadingMap((prev) => ({ ...prev, [groupId]: false }));
-      }
+  // 處理整列點擊
+  const handleRowClick = (row: ProjectTreeRow) => {
+    if (row.type === "group") {
+      setSelectedGroupId(row.id);
+      handleToggleExpand(row.id);
+    } else if (row.type === "testcase") {
+      navigate(`/project/${projectId}/testCase/${row.id}`);
     }
   };
 
-  // 建立 Flat Rows 用於 Tree Table 一維渲染
-  const buildFlatRows = (nodes: TestGroup[], depth = 0): FlatTreeRow[] => {
-    let list: FlatTreeRow[] = [];
-    nodes.forEach((node) => {
-      const isExpanded = expandedGroups[node.id] || false;
+  // 建立巢狀的 Tree Rows 用於 DataTable 渲染
+  const buildNestedTree = (nodes: TestGroup[]): ProjectTreeRow[] => {
+    return nodes.map((node) => {
       const tcs = testcasesMap[node.id] || [];
       const isLoading = loadingMap[node.id] || false;
-
       const subGroupsCount = node.children?.length || 0;
       const tcCount = tcs.length;
-      const groupItemCount = subGroupsCount + tcCount;
 
-      const hasChildren =
-        subGroupsCount > 0 || tcCount > 0 || !testcasesMap[node.id];
+      const childrenList: ProjectTreeRow[] = [];
 
-      list.push({
+      // 1. 如果正在載入且尚未有測試案例，塞入 loading 節點
+      if (isLoading && tcs.length === 0) {
+        childrenList.push({
+          id: `loading-${node.id}`,
+          name: "載入中...",
+          type: "loading",
+          itemCount: 0,
+          parentId: node.id,
+          originalData: null,
+        });
+      }
+
+      // 2. 遞迴加入子群組
+      if (node.children && node.children.length > 0) {
+        childrenList.push(...buildNestedTree(node.children));
+      }
+
+      // 3. 加入該群組下的測試案例
+      tcs.forEach((tc) => {
+        const lastRun =
+          tc.runs && tc.runs.length > 0
+            ? tc.runs[tc.runs.length - 1]
+            : undefined;
+        childrenList.push({
+          id: tc.id,
+          name: tc.name,
+          type: "testcase",
+          itemCount: tc.steps?.length || 0,
+          lastStatus: lastRun?.status,
+          parentId: node.id,
+          originalData: tc,
+        });
+      });
+
+      return {
         id: node.id,
         name: node.name,
         type: "group",
-        depth,
-        isExpanded,
-        hasChildren,
-        itemCount: groupItemCount,
+        itemCount: subGroupsCount + tcCount,
         parentId: node.parentId || null,
-      });
-
-      if (isExpanded) {
-        if (isLoading && tcs.length === 0) {
-          list.push({
-            id: `loading-${node.id}`,
-            name: "載入中...",
-            type: "loading",
-            depth: depth + 1,
-            isExpanded: false,
-            hasChildren: false,
-            itemCount: 0,
-            parentId: node.id,
-          });
-        }
-
-        if (node.children && node.children.length > 0) {
-          list = list.concat(buildFlatRows(node.children, depth + 1));
-        }
-
-        tcs.forEach((tc) => {
-          const lastRun =
-            tc.runs && tc.runs.length > 0
-              ? tc.runs[tc.runs.length - 1]
-              : undefined;
-          list.push({
-            id: tc.id,
-            name: tc.name,
-            type: "testcase",
-            depth: depth + 1,
-            isExpanded: false,
-            hasChildren: false,
-            itemCount: tc.steps?.length || 0,
-            lastStatus: lastRun?.status,
-            parentId: node.id,
-          });
-        });
-      }
+        children: childrenList.length > 0 ? childrenList : undefined,
+        originalData: node,
+      };
     });
-    return list;
   };
 
-  const flatRows = buildFlatRows(groupTree);
+  const nestedTree = useMemo(() => buildNestedTree(groupTree), [groupTree, testcasesMap, loadingMap]);
 
   // 扁平化群組列表 (供測試案例 Dialog 下拉選單使用)
   const flatGroups = (() => {
@@ -285,6 +324,184 @@ export default function ProjectDetailView() {
     };
     return flatten(groupTree);
   })();
+
+  // 定義 DataTable 欄位結構
+  const columns = useMemo<ColumnDef<ProjectTreeRow>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "名稱",
+        cell: ({ row }) => {
+          const { id, name, type } = row.original;
+          const depth = row.depth;
+          const isExpanded = row.getIsExpanded();
+
+          if (type === "loading") {
+            return (
+              <div
+                className="flex items-center gap-1.5 text-zinc-500 italic"
+                style={{ paddingLeft: `${depth * 1.5}rem` }}
+              >
+                <Loader2 size={12} className="animate-spin text-zinc-500" />
+                <span>載入測試案例中...</span>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              className="flex items-center justify-between w-full group/row"
+              style={{ paddingLeft: `${depth * 1.5}rem` }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {type === "group" ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      row.toggleExpanded();
+                    }}
+                    className="p-0.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-200 transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
+                  </button>
+                ) : (
+                  <div className="w-5" />
+                )}
+
+                {type === "group" ? (
+                  <Folder
+                    size={15}
+                    className={
+                      selectedGroupId === id ? "text-primary" : "text-zinc-500"
+                    }
+                  />
+                ) : (
+                  <FileText size={15} className="text-zinc-600" />
+                )}
+
+                <span className="truncate max-w-[280px]" title={name}>
+                  {name}
+                </span>
+              </div>
+
+              {/* 操作按鈕 */}
+              {type === "group" ? (
+                <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
+                  <button
+                    title="執行此群組所有測試案例"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRunGroup(id);
+                    }}
+                    className="p-1.5 hover:bg-zinc-800 rounded text-emerald-500 hover:text-emerald-400 transition-colors"
+                  >
+                    <Play size={12} className="fill-current" />
+                  </button>
+                  <button
+                    title="編輯群組"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const g = groups.find((group) => group.id === id);
+                      if (g) {
+                        setGroupToEdit(g);
+                        setNewGroupParentId(g.parentId || null);
+                        setShowEditGroupModal(true);
+                      }
+                    }}
+                    className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <button
+                    title="新增子群組"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerAddGroup(id);
+                    }}
+                    className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-100 transition-colors"
+                  >
+                    <Plus size={12} />
+                  </button>
+                  <button
+                    title="刪除群組"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteGroupId(id);
+                    }}
+                    className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ) : (
+                type === "testcase" && (
+                  <div className="opacity-0 group-hover/row:opacity-100 flex items-center gap-0.5 transition-opacity duration-150 shrink-0">
+                    <button
+                      title="刪除測試案例"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerDeleteTestCase(id);
+                      }}
+                      className="p-1.5 hover:bg-zinc-800 rounded text-zinc-500 hover:text-rose-400 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "type",
+        header: "類型",
+        cell: ({ row }) => {
+          const type = row.original.type;
+          if (type === "loading") return "-";
+          return (
+            <span className="text-xs text-zinc-500 uppercase tracking-wider">
+              {type === "group" ? "群組" : "測試案例"}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "itemCount",
+        header: () => <div className="text-center">子項目/步驟數</div>,
+        cell: ({ row, getValue }) => {
+          if (row.original.type === "loading") return "-";
+          return (
+            <div className="font-mono text-center text-zinc-500">
+              {getValue<number>()}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "lastStatus",
+        header: () => <div className="text-right">最後執行狀態</div>,
+        cell: ({ row }) => {
+          const status = row.original.lastStatus;
+          if (row.original.type === "testcase" && status) {
+            return (
+              <div className="text-right">
+                <div className="inline-flex">
+                  <StatusBadge status={status} />
+                </div>
+              </div>
+            );
+          }
+          return <div className="text-right text-zinc-600">-</div>;
+        },
+      },
+    ],
+    [selectedGroupId, groups],
+  );
 
   // 處理新增群組觸發
   const triggerAddGroup = (parentId: string | null) => {
@@ -374,27 +591,28 @@ export default function ProjectDetailView() {
       </div>
 
       {/* 測試案例樹狀表格目錄 */}
-      <GroupTreeTable
-        projectId={projectId || ""}
-        loading={loadingGroups}
-        groupTree={groupTree}
-        flatRows={flatRows}
-        selectedGroupId={selectedGroupId}
-        setSelectedGroupId={setSelectedGroupId}
-        onToggleExpand={handleToggleExpand}
-        onAddSubgroup={triggerAddGroup}
-        onEditGroup={(groupId) => {
-          const g = groups.find((group) => group.id === groupId);
-          if (g) {
-            setGroupToEdit(g);
-            setNewGroupParentId(g.parentId || null);
-            setShowEditGroupModal(true);
-          }
-        }}
-        onDeleteGroup={setDeleteGroupId}
-        onDeleteTestcase={triggerDeleteTestCase}
-        onRunGroup={handleRunGroup}
-      />
+      {loadingGroups ? (
+        <div className="max-w-6xl w-full mx-auto border border-zinc-850 bg-zinc-900/30 rounded-2xl p-20 text-center text-sm text-zinc-500 italic">
+          載入專案目錄中...
+        </div>
+      ) : groupTree.length === 0 ? (
+        <div className="max-w-6xl w-full mx-auto border border-zinc-850 bg-zinc-900/30 rounded-2xl p-20 text-center text-sm text-zinc-500 italic">
+          目前專案暫無群組，請點擊右上方「建立新群組」開始管理。
+        </div>
+      ) : (
+        <DataTable
+          data={nestedTree}
+          columns={columns}
+          getSubRows={(row) => row.children}
+          getRowCanExpand={(row) => row.original.type === "group"}
+          getRowId={(row) => row.id}
+          expanded={expanded}
+          onExpandedChange={handleExpandedChange}
+          onRowClick={handleRowClick}
+          showSearch={true}
+          searchPlaceholder="搜尋目錄內容..."
+        />
+      )}
 
       {/* 新群組彈窗 */}
       <NewGroupSheet
@@ -405,7 +623,10 @@ export default function ProjectDetailView() {
           const res = await handleCreateSubgroup(name, parentId);
           if (res) {
             if (parentId) {
-              setExpandedGroups((prev) => ({ ...prev, [parentId]: true }));
+              setExpanded((prev) => {
+                const prevMap = prev as Record<string, boolean>;
+                return { ...prevMap, [parentId]: true };
+              });
             }
             setShowNewGroupModal(false);
           }

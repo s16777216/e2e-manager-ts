@@ -1,10 +1,7 @@
 import { type Column } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ChevronsUpDownIcon } from "@/components/icon";
-import { Filter } from "lucide-react";
-import { ArrowDownAZIcon } from "@/components/icon/arrow-down-a-z";
-import { ArrowDownZAIcon } from "@/components/icon/arrow-down-z-a";
+import { AArrowDown, AArrowUp, ArrowUpDown, Filter } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -91,11 +88,11 @@ export function DataTableColumnHeader<TData, TValue>({
                 onClick={handleSortClick}
               >
                 {column.getIsSorted() === "desc" ? (
-                  <ArrowDownAZIcon />
+                  <AArrowDown />
                 ) : column.getIsSorted() === "asc" ? (
-                  <ArrowDownZAIcon />
+                  <AArrowUp />
                 ) : (
-                  <ChevronsUpDownIcon />
+                  <ArrowUpDown />
                 )}
               </Button>
             </TooltipTrigger>

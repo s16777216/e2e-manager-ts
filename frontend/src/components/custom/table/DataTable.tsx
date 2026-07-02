@@ -10,6 +10,9 @@ import {
   getSortedRowModel,
   type ColumnFiltersState,
   getFilteredRowModel,
+  getExpandedRowModel,
+  type ExpandedState,
+  type Row,
 } from "@tanstack/react-table";
 
 import {
@@ -36,6 +39,11 @@ export interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   globalFilter?: string;
   onGlobalFilterChange?: (value: string) => void;
+  getSubRows?: (row: TData) => TData[] | undefined;
+  getRowCanExpand?: (row: Row<TData>) => boolean;
+  getRowId?: (row: TData) => string;
+  expanded?: ExpandedState;
+  onExpandedChange?: React.Dispatch<React.SetStateAction<ExpandedState>>;
 }
 
 export function DataTable<TData, TValue>({
@@ -48,6 +56,11 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "搜尋...",
   globalFilter: controlledGlobalFilter,
   onGlobalFilterChange: controlledOnGlobalFilterChange,
+  getSubRows,
+  getRowCanExpand,
+  getRowId,
+  expanded: controlledExpanded,
+  onExpandedChange: controlledOnExpandedChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -62,22 +75,40 @@ export function DataTable<TData, TValue>({
     ? controlledOnGlobalFilterChange
     : setInternalGlobalFilter;
 
+  // 支援受控與非受控狀態下的 expanded
+  const [internalExpanded, setInternalExpanded] = useState<ExpandedState>({});
+  const isExpandedControlled = controlledExpanded !== undefined;
+  const expanded = isExpandedControlled
+    ? controlledExpanded
+    : internalExpanded;
+  const setExpanded = isExpandedControlled
+    ? controlledOnExpandedChange
+    : setInternalExpanded;
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
+    getSubRows,
+    getRowCanExpand,
+    getRowId,
+    paginateExpandedRows: false,
+    filterFromLeafRows: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     state: {
       sorting,
       columnFilters,
       globalFilter,
+      expanded,
     },
     onGlobalFilterChange: setGlobalFilter,
+    onExpandedChange: setExpanded,
   });
 
   return (
