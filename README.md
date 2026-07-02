@@ -1,32 +1,36 @@
-# AI Agent Step-by-Step E2E Test Manager (TypeScript 版)
+# Auto Step-by-Step E2E Test Manager
 
-這是一個基於大語言模型（LLM）多模態代理的 Web E2E（端到端）自動化驗收測試管理器。使用者只需提供自然語言描述的測試劇本與預期結果，AI 代理便會自主調度瀏覽器、解析簡化 DOM、模擬點擊與輸入操作，並在執行結束後進行多模態視覺斷言，最終生成完整的執行日誌與步驟完成截圖。
+這是一個基於大語言模型多模態代理的端到端動化驗收測試管理器。使用者只需提供自然語言描述的測試劇本與預期結果，AI 代理便會自主調度瀏覽器、解析簡化 DOM、模擬點擊與輸入操作，並在執行結束後進行多模態視覺斷言，最終生成完整的執行日誌與步驟完成截圖。
 
 ---
 
-## 🚀 核心技術棧
+## 核心技術棧
 
 - **AI 流程協調：** `@langchain/langgraph` (TypeScript 版) — 構建具備條件路由與重試機制的非同步狀態機。
-- **大語言模型 (LLM)：** Gemini 3.1 / 1.5 系列模型 — 負責逐步 Action 決策與最終的結構化視覺斷言（以 Zod 強制約束輸出）。
-- **瀏覽器自動化：** Playwright — 原生控制 Chromium 瀏覽器，進行頁面元素操縱與即時截圖。
-- **Web API 服務端：** Hono — 現代、極速且原生支援 TypeScript 的 Web 框架。
-- **資料庫與 ORM：** PostgreSQL + TypeORM — 支援實體關聯、自動 schema 同步，並利用 **Tree Entities** (樹狀裝飾子) 處理遞迴嵌套的資料結構。
-- **單元測試框架：** Vitest — 原生支援 TypeScript 與 ESM 的極速測試框架，用於對劇本解析、DOM 定位、LangGraph 條件路由與佇列狀態機進行邏輯隔離測試。
+- **大語言模型：** 支援 Gemini 系列模型 與 OpenAI API。
+- **瀏覽器自動化：** Playwright。
+- **Web API 服務端：** Hono。
+- **資料庫與 ORM：** PostgreSQL + TypeORM。
+- **前端：** React + Vite + Tailwind CSS，由 Nginx 託管並代理 API 請求。
+- **單元測試框架：** Vitest。
 
 ---
 
-## 🎨 系統架構設計
+## 系統設計
 
-系統結合了 **生產者-消費者 (Producer-Consumer)** 與 **發佈者-訂閱者 (Pub-Sub)** 兩種經典架構模式，所有非同步排隊與即時廣播皆高度整合在 PostgreSQL 中：
+系統結合了 **生產者-消費者** 與 **發佈者-訂閱者** 兩種經典架構模式，所有非同步排隊與即時廣播皆高度整合在 PostgreSQL 中：
 
 ```
                 ┌──────────────────────────────────────────────┐
-                │          前端網頁儀表板 (Web Dashboard)      │
-                │        - 編輯劇本、即時觀看 AI 測試畫面      │
+                │     前端網頁儀表板 (Nginx + React SPA)        │
+                │     - 編輯劇本、即時觀看 AI 測試畫面           │
                 └──────────────────────────────────────────────┘
-                                  │           ▲
-                   RESTful APIs / │           │ Server-Sent Events (SSE)
-                   Trigger Run    ▼           │ (即時串流步驟日誌與截圖)
+                     │ :3001 (所有流量統一入口)     ▲
+                     ├── 靜態頁面 (Nginx 直接回應)  │
+                     └── /api/* (反向代理至後端) ───┘
+                                   │           ▲
+                      RESTful APIs │           │ Server-Sent Events (SSE)
+                      Trigger Run  ▼           │ (即時串流步驟日誌與截圖)
                 ┌──────────────────────────────────────────────┐
                 │             Hono Web API Server              │
                 │               - 訂閱 LISTEN                  │
@@ -55,124 +59,111 @@
 
 ### 1. 專案階層組織 (Project > Group > Testcase)
 
-- **Project (專案)：** 最上層的容器，劃分不同系統專區。
-- **Group (群組)：** 資料夾結構，支援**無限層級遞迴嵌套**（利用 TypeORM `@Tree("adjacency-list")` 實作）。
-- **Testcase (測試案例)：** 具體的自然語言步驟劇本與預期結果。
+- **Project (專案)：** 最上層的容器，劃分不同系統專案。
+- **Group (群組)：** 資料夾結構，支援**無限層級遞迴嵌套**。
+- **Testcase (測試案例)：** 具體的自然語言步驟描述與預期結果。
 
 ### 2. 事務性背景佇列 (DB Queue)
 
-- Worker 藉由執行 `SELECT ... FOR UPDATE SKIP LOCKED` 查詢，安全地在資料庫中搶占 `pending` 狀態的任務並將其標記為 `running`。這能防止多個 Worker 重複領取同一個任務，且能保證伺服器重啟時任務不遺失。
+Worker 藉由執行 `SELECT ... FOR UPDATE SKIP LOCKED` 查詢，安全地在資料庫中搶占 `pending` 狀態的任務並將其標記為 `running`。這能防止多個 Worker 重複領取同一個任務，且能保證伺服器重啟時任務不遺失。
 
 ### 3. 即時步驟串流 (LISTEN / NOTIFY)
 
-- 當 Worker 在背景寫入新的步驟日誌（`TestLog`）時，資料庫會發佈 `NOTIFY` 事件。Hono 伺服器維持一個 `LISTEN` 連線訂閱此事件，並透過 Server-Sent Events (SSE) 機制即時將日誌與截圖路徑串流給瀏覽器。
+當 Worker 在背景寫入新的步驟日誌（`TestLog`）時，資料庫會發佈 `NOTIFY` 事件。Hono 伺服器維持一個 `LISTEN` 連線訂閱此事件，並透過 Server-Sent Events (SSE) 機制即時將日誌與截圖路徑串流給瀏覽器。
 
 ---
 
-## 📁 專案目錄結構
+## 專案目錄結構
 
 ```
-c:\works\e2e-manager-ts\
-├── docs/                   # 專案文件 (包含 POC 計畫書及工作流草稿)
-├── openspec/               # OpenSpec 設計與規格定義 (Spec-driven development)
-│   ├── specs/              # 主系統規格能力定義
-│   └── changes/            # 歷史變更提案與任務紀錄 (含封存目錄)
-├── reports/                # 測試報告與步驟截圖輸出目錄 (可作為靜態目錄存取)
-├── src/                    # 原始碼目錄
-│   ├── entities/           # TypeORM 實體定義 (Project, TestGroup, Testcase, 等)
-│   ├── routes/             # Hono 子路由模組 (project, group, testcase, run) [NEW]
-│   ├── services/           # 獨立業務服務模組 (如群組防環 groupService)
-│   ├── browser/            # 瀏覽器定位等核心演算法 (如 selector 計算)
-│   ├── graph/              # 狀態機 Prompt 拼接與條件路由純函數
-│   ├── queue/              # 任務佇列狀態轉移 FSM
-│   ├── main.ts             # CLI 測試進入點
-│   ├── server.ts           # Hono API 伺服器入口 (載入子路由與 Bootstrap)
-│   ├── db.ts               # TypeORM DataSource 初始化與啟動修復邏輯
-│   ├── queue.ts            # PostgreSQL 事務佇列管理類別
-│   ├── browser.ts          # Playwright 控制與 HTML DOM 元素過濾簡化器
-│   ├── graph.ts            # LangGraph.js 狀態圖節點與條件路由定義
-│   ├── tools.ts            # 提供給 AI 代理呼叫的瀏覽器互動工具箱
-│   ├── parser.ts           # 本地 JSON 劇本驗證解析器 (Zod)
-│   └── reporter.ts         # Markdown 報告組裝生成器
-├── tests/                  # 測試檔案目錄
-│   ├── services/           # 服務層單元測試 (如 groupService)
-│   ├── browser/            # 瀏覽器定位單元測試 (如 selector)
-│   ├── queue/              # 佇列狀態機單元測試 (如 taskFSM)
-│   ├── *.test.ts           # 其他模組單元測試 (如 parser, graph)
-│   └── *.json              # 本地 JSON 測試劇本範例
-├── package.json            # 專案套件依賴與腳本定義
-├── tsconfig.json           # TypeScript 編譯設定
-└── tsconfig.build.json     # 生產編譯 TypeScript 設定
+e2e-manager-ts/
+├── backend/                # 後端子專案 (Hono API + LangGraph)
+│   ├── src/
+│   │   ├── entities/       # TypeORM 實體定義
+│   │   ├── routes/         # Hono 子路由模組
+│   │   ├── services/       # 業務服務模組 (群組防環等)
+│   │   ├── browser/        # 瀏覽器定位核心演算法
+│   │   ├── graph/          # LangGraph 狀態機節點與條件路由
+│   │   ├── queue/          # 任務佇列狀態轉移 FSM
+│   │   └── server.ts       # Hono API 伺服器入口
+│   ├── tests/              # 後端單元測試
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/               # 前端子專案 (React + Vite SPA)
+│   ├── src/
+│   ├── nginx.conf          # Nginx 設定 (SPA 路由 + API 反向代理)
+│   ├── Dockerfile
+│   └── package.json
+├── docker-compose.yml      # 三服務編排：db / backend / frontend
+├── .env                    # 環境變數
+└── package.json            # Monorepo 根目錄套件設定
 ```
 
 ---
 
-## 🚀 快速開始
+## Docker 部署
 
-### 1. 安裝環境與依賴
+### 前置需求
 
-確保已安裝 Node.js 18+ 與 PostgreSQL 服務。
+- [Docker](https://docs.docker.com/get-docker/) 與 Docker Compose
+
+### 部署步驟
+
+**1. 啟動所有服務**
 
 ```bash
-# 安裝 npm 依賴套件
+docker-compose up -d --build
+```
+
+首次執行會自動 build 映像檔，後續啟動不需 `--build`。
+
+**2. 開啟瀏覽器**
+
+```
+http://<your-server-ip>:3001
+```
+
+**3. 設定大語言模型 API 金鑰**
+
+首次進入後，至**設定頁面**輸入 LLM API 金鑰（支援 Gemini / OpenAI）。金鑰儲存於資料庫。
+
+### 埠口說明
+
+| 埠口   | 服務             | 說明                                                          |
+| ------ | ---------------- | ------------------------------------------------------------- |
+| `3001` | Frontend (Nginx) | 所有流量統一入口；靜態頁面直接回應，`/api/*` 反向代理至後端   |
+| `5433` | PostgreSQL       | 僅供本地 GUI 工具（如 DBeaver）連線偵錯使用，非必要不對外暴露 |
+
+> **注意：** 後端服務（port 3001）僅在 Docker 內部網路中暴露，不直接對外。所有 API 請求皆透過 Nginx 代理進入。
+
+---
+
+## 本地開發
+
+### 前置需求
+
+- Node.js 18+
+- PostgreSQL（本地或 Docker）
+
+### 安裝與啟動
+
+```bash
+# 安裝 Monorepo 所有依賴
 npm install
 
 # 安裝 Playwright 瀏覽器核心 (Chromium)
 npx playwright install chromium
+
+# 啟動後端開發伺服器
+npm run dev
 ```
 
-### 2. 配置環境變數
+### 環境變數
 
-於專案根目錄建立 `.env` 檔案（可參考 `.env.example`）：
+於 `backend/` 目錄建立 `.env`（參考 `backend/.env.example`）：
 
 ```env
-# Gemini API 憑證 (必須設定)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# PostgreSQL 資料庫連線字串 (伺服器模式需要)
-DATABASE_URL=postgresql://username:password@localhost:5432/e2e_manager
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/e2e_manager
+PORT=3001
+QUEUE_PORT=3002
 ```
-
-### 3. 以 CLI 模式執行本地測試
-
-可以直接傳入 JSON 劇本，在終端機中同步執行測試並生成 Markdown 報告：
-
-```bash
-# 執行維基百科搜尋 TypeScript 的測試範例
-npx tsx src/main.ts tests/search_test.json
-```
-
-執行完畢後，可在控制台看見結果，並於 `reports/run_wiki_search_ts_<timestamp>/` 內找到完整的 `report.md` 及逐步截圖。
-
-### 4. 啟動 Web API 伺服器
-
-將伺服器啟動於本地，提供 REST API 與即時串流：
-
-```bash
-npm run server
-```
-
-### 5. 執行單元測試
-
-在不依賴任何外部資料庫或瀏覽器資源的情況下，快速驗證專案純邏輯：
-
-```bash
-# 執行全專案所有的單元測試 (parser, graph, selector, taskFSM, groupService)
-npm run test
-
-# 以監聽 (watch) 模式執行開發測試
-npm run test:watch
-```
-
----
-
-## 🛠️ OpenSpec 開發規範
-
-本專案採用 **規約驅動開發 (Spec-driven development)**。所有系統規格、設計架構與實作任務，均經由 OpenSpec CLI 工具統一規範與追蹤：
-
-- **驗證現有規格與變更：**
-  ```bash
-  openspec validate
-  ```
-- **查看歷史已封存的變更提案：**
-  可參閱 [openspec/changes/archive/](file:///c:/works/e2e-manager-ts/openspec/changes/archive/) 下的設計與記錄。
