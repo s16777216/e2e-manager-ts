@@ -15,14 +15,25 @@
 ## Decisions
 
 ### 1. 擴充 DataTable 屬性與 TanStack Table 狀態
-* **決策**：在 `DataTableProps` 新增可選的 `getSubRows?: (row: TData) => TData[] | undefined`。
+* **決策**：在 `DataTableProps` 新增可選的 `getSubRows`、`getRowCanExpand`、`getRowId`、以及受控的 `expanded` 與 `onExpandedChange`。
+* **分頁與過濾設定**：
+  * 在 `useReactTable` 設定 `paginateExpandedRows: false`，確保展開的子列在分頁時維持在父列下方，不會被跨頁裁切。
+  * 設定 `filterFromLeafRows: true`，確保搜尋過濾從葉子節點（測試案例）向上檢查，過濾時能正確保留匹配案例的父群組。
 * **狀態管理**：
   ```typescript
-  const [expanded, setExpanded] = useState<ExpandedState>({});
-  
+  // DataTable.tsx 內部
+  const [internalExpanded, setInternalExpanded] = useState<ExpandedState>({});
+  const isExpandedControlled = controlledExpanded !== undefined;
+  const expanded = isExpandedControlled ? controlledExpanded : internalExpanded;
+  const setExpanded = isExpandedControlled ? controlledOnExpandedChange : setInternalExpanded;
+
   const table = useReactTable({
     // ... 原有配置
     getSubRows,
+    getRowCanExpand,
+    getRowId,
+    paginateExpandedRows: false,
+    filterFromLeafRows: true,
     getExpandedRowModel: getExpandedRowModel(),
     onExpandedChange: setExpanded,
     state: {
@@ -35,13 +46,13 @@
 ### 2. View 端的 ColumnDef 縮排與圖示自訂
 * **決策**：在 `ProjectDetailView.tsx` 的 Column 定義中，對「名稱」欄位採用以下渲染結構：
   * 使用 `style={{ paddingLeft: `${row.depth * 1.5}rem` }}` 進行層級縮排。
-  * 若 `row.getCanExpand()` 為 true，渲染展開/收合按鈕並點擊呼叫 `row.getToggleExpandedHandler()`，若為 false 則為葉子節點。
+  * 若 `row.getCanExpand()` 為 true，渲染展開/收合按鈕並點擊呼叫 `row.getToggleExpandedHandler()`。
   * 根據節點類型（Group / TestCase）自動呈現 `Folder`、`FolderOpen` 或 `FileText` 圖示。
 
-### 3. 與 Lazy Loading 機制無縫整合
-* **決策**：在使用者點擊展開按鈕時，除了觸發 `row.getToggleExpandedHandler()`，若該 Group 的測試案例尚未載入，則發送 API 載入，並將其合併至前端的 treeRows 資料中，觸發 Table 的重新渲染。
+### 3. 受控狀態與 Lazy Loading 機制攔截器
+* **決策**：在 View 端的 `onExpandedChange` 處理函數中，攔截 `expanded` 的狀態更新。一旦發現某個 Group 的 ID 新增至展開集合（`prev[id] === false && next[id] === true`），且該群組的測試案例尚未載入，即發送 API 載入，並將其合併至前端的 treeRows 資料中，觸發 Table 的重新渲染。此方式可統一處理「點擊整列展開」與「點擊折疊按鈕展開」的載入邏輯，毋需重複撰寫。
 
 ## Risks / Trade-offs
 
 * **[風險]** React Table v8 的樹狀數據結構要求父子列型別一致。目前專案中的群組（Group）與測試案例（TestCase）是不同的型別結構。
-  * **[對策]** 在 View 中，我們需要建立一個統一的 `FlatTreeRow` (或者 UnifiedTreeNode) 型別物件，包含 `id`, `name`, `type: "group" | "case"`, `children` 等，將 API 獲取的 Group 樹與懶加載的 TestCase 樹統一包裝為這一個型別的樹狀結構，以供 `DataTable` 解析。
+  * **[對策]** 在 View 中，我們需要建立一個統一的 `ProjectTreeRow` 型別物件，包含 `id`, `name`, `type: "group" | "testcase" | "loading"`, `children` 等，將 API 獲取的 Group 樹與懶加載的 TestCase 樹統一包裝為這一個型別的樹狀結構，以供 `DataTable` 解析。同時透過 `getRowId: (row) => row.id` 保持 React Table 展開狀態 key 值的穩定與唯一性。
