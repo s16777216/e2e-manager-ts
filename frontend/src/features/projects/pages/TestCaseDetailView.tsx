@@ -264,8 +264,15 @@ export default function TestCaseDetailView() {
               </Button>
               <Button
                 onClick={handleRunTestCase}
-                disabled={isTriggering}
-                className="bg-emerald-600 text-white hover:bg-emerald-500 font-semibold gap-1.5 shadow-lg shadow-emerald-600/10"
+                disabled={
+                  isTriggering || !testcase.steps || testcase.steps.length === 0
+                }
+                title={
+                  !testcase.steps || testcase.steps.length === 0
+                    ? "請先新增至少一個測試步驟才能執行"
+                    : undefined
+                }
+                className="bg-emerald-600 text-white hover:bg-emerald-500 font-semibold gap-1.5 shadow-lg shadow-emerald-600/10 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isTriggering ? (
                   <LoaderCircle size={14} className="animate-spin" />
@@ -328,6 +335,18 @@ export default function TestCaseDetailView() {
                         步驟詳情 (Steps)
                       </h4>
                       <div className="flex flex-col gap-3">
+                        {testcase.steps.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-8 gap-3 text-zinc-600">
+                            <Play size={28} className="opacity-30" />
+                            <p className="text-sm">尚未新增任何步驟</p>
+                            <button
+                              onClick={() => setIsEditing(true)}
+                              className="text-xs text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors"
+                            >
+                              點擊「編輯測試案例」來新增步驟
+                            </button>
+                          </div>
+                        )}
                         {testcase.steps.map((step, idx) => (
                           <div
                             key={idx}

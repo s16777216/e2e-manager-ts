@@ -24,17 +24,11 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
   const groupId = c.req.param("groupId");
   const { name, steps, expected, initCookies, initLocalStorage, variables } = await c.req.json();
 
-  if (
-    !name ||
-    !steps ||
-    !Array.isArray(steps) ||
-    steps.length === 0 ||
-    !expected
-  ) {
-    return c.json(
-      { error: "無效的欄位：name, steps (非空陣列), expected 皆為必填" },
-      400,
-    );
+  if (!name) {
+    return c.json({ error: "無效的欄位：name 為必填" }, 400);
+  }
+  if (steps !== undefined && !Array.isArray(steps)) {
+    return c.json({ error: "無效的欄位：steps 必須為陣列" }, 400);
   }
 
   const group = await AppDataSource.getRepository(TestGroup).findOne({
@@ -44,14 +38,14 @@ testcaseRouter.post("/groups/:groupId/testcases", async (c) => {
 
   const testcase = new Testcase();
   testcase.name = name;
-  testcase.expected = expected;
+  testcase.expected = expected ?? "";
   testcase.group = group;
   testcase.initCookies = initCookies;
   testcase.initLocalStorage = initLocalStorage;
   testcase.variables = variables;
 
   // 轉換成 TestcaseStep 實體
-  testcase.steps = steps.map((s: any, idx: number) => {
+  testcase.steps = (steps ?? []).map((s: any, idx: number) => {
     const step = new TestcaseStep();
     step.stepIdx = idx;
     step.action = typeof s === "string" ? s : s.action;
